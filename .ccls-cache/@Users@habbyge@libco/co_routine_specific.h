@@ -26,21 +26,19 @@ invoke only once in the whole program
 CoRoutineSetSpecificCallBack(CoRoutineGetSpecificFunc_t
 pfnGet,CoRoutineSetSpecificFunc_t pfnSet)
 
-struct MyData_t
-{
-        int iValue;
-        char szValue[100];
+struct MyData_t {
+	int iValue;
+  char szValue[100];
 };
 CO_ROUTINE_SPECIFIC( MyData_t,__routine );
 
-int main()
-{
-        CoRoutineSetSpecificCallBack( co_getspecific,co_setspecific );
+int main() {
+  CoRoutineSetSpecificCallBack( co_getspecific,co_setspecific );
 
-        __routine->iValue = 10;
-        strcpy( __routine->szValue,"hello world" );
+  __routine->iValue = 10;
+  strcpy( __routine->szValue,"hello world" );
 
-        return 0;
+  return 0;
 }
 */
 extern int co_setspecific(pthread_key_t key, const void *value);

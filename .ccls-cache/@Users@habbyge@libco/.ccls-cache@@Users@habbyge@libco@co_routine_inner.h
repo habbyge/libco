@@ -41,7 +41,7 @@ struct stShareStack_t {
 };
 
 struct stCoRoutine_t {
-  stCoRoutineEnv_t *env;
+  stCoRoutineEnv_t* env;
   pfn_co_routine_t pfn;
   void* arg;
   coctx_t ctx;
@@ -52,15 +52,15 @@ struct stCoRoutine_t {
   char cEnableSysHook;
   char cIsShareStack;
 
-  void *pvEnv;
+  void* pvEnv;
 
   // char sRunStack[ 1024 * 128 ];
-  stStackMem_t *stack_mem;
+  stStackMem_t* stack_mem;
 
   // save satck buffer while confilct on same stack_buffer;
-  char *stack_sp;
+  char* stack_sp;
   unsigned int save_size;
-  char *save_buffer;
+  char* save_buffer;
 
   stCoSpec_t aSpec[1024];
 };
