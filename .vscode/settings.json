@@ -1,9 +1,0 @@
-{
-  "files.associations": {
-    "typeinfo": "cpp",
-    "__config": "cpp",
-    "algorithm": "cpp"
-  },
-  "cmake.configureOnOpen": true,
-  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
-}
