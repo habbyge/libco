@@ -38,3 +38,5 @@ README.md
 .ccls-cache/*
 build
 build/*
+.vscode
+.vscode/*

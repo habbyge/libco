@@ -39,7 +39,7 @@ available.
 #include <cstring>
 #endif
 
-using namespace std;
+// using namespace std;
 
 struct task_t {
   stCoRoutine_t* co;
@@ -94,7 +94,7 @@ static int CreateTcpSocket(const unsigned short shPort = 0, const char* pszIP = 
 static void* poll_routine(void *arg) {
   co_enable_hook_sys();
 
-  vector<task_t> &v = *(vector<task_t>*)arg;
+  std::vector<task_t> &v = *(std::vector<task_t>*)arg;
   for (size_t i = 0; i < v.size(); i++) {
     int fd = CreateTcpSocket();
     SetNonBlock(fd);
@@ -109,7 +109,7 @@ static void* poll_routine(void *arg) {
     pf[i].fd = v[i].fd;
     pf[i].events = (POLLOUT | POLLERR | POLLHUP);
   }
-  set<int> setRaiseFds;
+  std::set<int> setRaiseFds;
   size_t iWaitCnt = v.size();
   for (;;) {
     int ret = poll(pf, iWaitCnt, 1000);
@@ -145,8 +145,9 @@ static void* poll_routine(void *arg) {
   printf("co %p task cnt %ld fire %ld\n", co_self(), v.size(), setRaiseFds.size());
   return 0;
 }
+
 int main(int argc, char *argv[]) {
-  vector<task_t> v;
+  std::vector<task_t> v;
   for (int i = 1; i < argc; i += 2) {
     task_t task = {0};
     SetAddr(argv[i], atoi(argv[i + 1]), task.addr);
@@ -155,13 +156,13 @@ int main(int argc, char *argv[]) {
 
   //------------------------------------------------------------------------------------
   printf("--------------------- main -------------------\n");
-  vector<task_t> v2 = v;
+  std::vector<task_t> v2 = v;
   poll_routine(&v2);
   printf("--------------------- routine -------------------\n");
 
   for (int i = 0; i < 10; i++) {
     stCoRoutine_t* co = 0;
-    vector<task_t>* v2 = new vector<task_t>();
+    std::vector<task_t>* v2 = new std::vector<task_t>();
     *v2 = v;
     co_create(&co, NULL, poll_routine, v2);
     printf("routine i %d\n", i);
