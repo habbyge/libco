@@ -182,24 +182,22 @@ struct rpchook_connagent_head_t {
     g_sys_##name##_func = (name##_pfn_t)dlsym(RTLD_NEXT, #name);               \
   }
 
-static inline ll64_t diff_ms(struct timeval &begin, struct timeval &end) {
+static inline ll64_t diff_ms(struct timeval& begin, struct timeval& end) {
   ll64_t u = (end.tv_sec - begin.tv_sec);
   u *= 1000 * 10;
   u += (end.tv_usec - begin.tv_usec) / (100);
   return u;
 }
 
-static inline rpchook_t *get_by_fd(int fd) {
-  if (fd > -1 && fd < (int)sizeof(g_rpchook_socket_fd) /
-                          (int)sizeof(g_rpchook_socket_fd[0])) {
+static inline rpchook_t* get_by_fd(int fd) {
+  if (fd > -1 && fd < (int)sizeof(g_rpchook_socket_fd) / (int)sizeof(g_rpchook_socket_fd[0])) {
     return g_rpchook_socket_fd[fd];
   }
   return NULL;
 }
-static inline rpchook_t *alloc_by_fd(int fd) {
-  if (fd > -1 && fd < (int)sizeof(g_rpchook_socket_fd) /
-                          (int)sizeof(g_rpchook_socket_fd[0])) {
-    rpchook_t *lp = (rpchook_t *)calloc(1, sizeof(rpchook_t));
+static inline rpchook_t* alloc_by_fd(int fd) {
+  if (fd > -1 && fd < (int)sizeof(g_rpchook_socket_fd) / (int)sizeof(g_rpchook_socket_fd[0])) {
+    rpchook_t* lp = (rpchook_t*) calloc(1, sizeof(rpchook_t));
     lp->read_timeout.tv_sec = 1;
     lp->write_timeout.tv_sec = 1;
     g_rpchook_socket_fd[fd] = lp;
@@ -208,9 +206,8 @@ static inline rpchook_t *alloc_by_fd(int fd) {
   return NULL;
 }
 static inline void free_by_fd(int fd) {
-  if (fd > -1 && fd < (int)sizeof(g_rpchook_socket_fd) /
-                          (int)sizeof(g_rpchook_socket_fd[0])) {
-    rpchook_t *lp = g_rpchook_socket_fd[fd];
+  if (fd > -1 && fd < (int)sizeof(g_rpchook_socket_fd) / (int)sizeof(g_rpchook_socket_fd[0])) {
+    rpchook_t* lp = g_rpchook_socket_fd[fd];
     if (lp) {
       g_rpchook_socket_fd[fd] = NULL;
       free(lp);
@@ -229,7 +226,7 @@ int socket(int domain, int type, int protocol) {
     return fd;
   }
 
-  rpchook_t *lp = alloc_by_fd(fd);
+  rpchook_t* lp = alloc_by_fd(fd);
   lp->domain = domain;
 
   fcntl(fd, F_SETFL, g_sys_fcntl_func(fd, F_GETFL, 0));
@@ -237,7 +234,7 @@ int socket(int domain, int type, int protocol) {
   return fd;
 }
 
-int co_accept(int fd, struct sockaddr *addr, socklen_t *len) {
+int co_accept(int fd, struct sockaddr* addr, socklen_t* len) {
   int cli = accept(fd, addr, len);
   if (cli < 0) {
     return cli;

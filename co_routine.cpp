@@ -381,7 +381,7 @@ inline void TakeAllTimeout(stTimeout_t* apTimeout, unsigned long long allNow, st
   apTimeout->ullStart = allNow;
   apTimeout->llStartIdx += cnt - 1;
 }
-static int CoRoutineFunc(stCoRoutine_t *co, void *) {
+static int CoRoutineFunc(stCoRoutine_t* co, void*) {
   if (co->pfn) {
     co->pfn(co->arg);
   }
@@ -394,9 +394,9 @@ static int CoRoutineFunc(stCoRoutine_t *co, void *) {
   return 0;
 }
 
-struct stCoRoutine_t *co_create_env(stCoRoutineEnv_t *env,
-                                    const stCoRoutineAttr_t *attr,
-                                    pfn_co_routine_t pfn, void *arg) {
+struct stCoRoutine_t* co_create_env(stCoRoutineEnv_t* env,
+                                    const stCoRoutineAttr_t* attr,
+                                    pfn_co_routine_t pfn, void* arg) {
 
   stCoRoutineAttr_t at;
   if (attr) {
@@ -413,7 +413,7 @@ struct stCoRoutine_t *co_create_env(stCoRoutineEnv_t *env,
     at.stack_size += 0x1000;
   }
 
-  stCoRoutine_t *lp = (stCoRoutine_t *)malloc(sizeof(stCoRoutine_t));
+  stCoRoutine_t* lp = (stCoRoutine_t*) malloc(sizeof(stCoRoutine_t));
 
   memset(lp, 0, (long)(sizeof(stCoRoutine_t)));
 
@@ -421,7 +421,7 @@ struct stCoRoutine_t *co_create_env(stCoRoutineEnv_t *env,
   lp->pfn = pfn;
   lp->arg = arg;
 
-  stStackMem_t *stack_mem = NULL;
+  stStackMem_t* stack_mem = NULL;
   if (at.share_stack) {
     stack_mem = co_get_stackmem(at.share_stack);
     at.stack_size = at.share_stack->stack_size;
@@ -638,6 +638,7 @@ static short EpollEvent2Poll(uint32_t events) {
   return e;
 }
 
+// __thread 表示线程私有变量
 // libco 的协程是 "单调用链"的，就是说一个线程内可以创建 N 个协程，协程总是由当前线程调用，一个线程只有一条调用链。
 // libco 使用 stCoRoutineEnv_t 结构来记录当前的调用链。当前线程的调用链通过线程专有变量 gCoEnvPerThread 来保存，
 // libco 内部会在第一次使用协程的时候初始化这个变量，我们看到 stCoRoutineEnv_t.pCallStack 的大小 128，这意味着，
