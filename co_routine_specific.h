@@ -41,8 +41,14 @@ int main() {
   return 0;
 }
 */
-extern int co_setspecific(pthread_key_t key, const void *value);
-extern void *co_getspecific(pthread_key_t key);
+
+// TODO: 指定name类型的协程特私有变量y，有啥用？提供了一个宏让用户可以方便地使用协程私有变量。可以看到，
+// pthread_key_t 是需要用到 "线程私有变量" 的相关设施来创建的。可以看到相关实现非常简单，如果是主协程
+// 则直接使用线程私有变量的相关函数，否则使用协程结构（上面有给出协程结构的定义）的 aSpec 数组来保存，
+// aSpec 是一个大小为 1024 的数组，其数组元素类型为 stCoSpec_t。
+
+extern int co_setspecific(pthread_key_t key, const void* value);
+extern void* co_getspecific(pthread_key_t key);
 
 #define CO_ROUTINE_SPECIFIC(name, y)                                           \
                                                                                \
@@ -50,18 +56,19 @@ extern void *co_getspecific(pthread_key_t key);
   static pthread_key_t _routine_key_##name;                                    \
   static int _routine_init_##name = 0;                                         \
   static void _routine_make_key_##name() {                                     \
-    (void)pthread_key_create(&_routine_key_##name, NULL);                      \
+    (void) pthread_key_create(&_routine_key_##name, NULL);                     \
   }                                                                            \
-  template <typename T> class clsRoutineData_routine_##name {                  \
+  template<typename T>                                                         \
+  class clsRoutineData_routine_##name {                                        \
   public:                                                                      \
-    inline T *operator->() {                                                   \
+    inline T* operator->() {                                                   \
       if (!_routine_init_##name) {                                             \
         pthread_once(&_routine_once_##name, _routine_make_key_##name);         \
         _routine_init_##name = 1;                                              \
       }                                                                        \
-      T *p = (T *)co_getspecific(_routine_key_##name);                         \
+      T* p = (T*) co_getspecific(_routine_key_##name);                         \
       if (!p) {                                                                \
-        p = (T *)calloc(1, sizeof(T));                                         \
+        p = (T*) calloc(1, sizeof(T));                                         \
         int ret = co_setspecific(_routine_key_##name, p);                      \
         if (ret) {                                                             \
           if (p) {                                                             \

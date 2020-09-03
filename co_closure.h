@@ -19,6 +19,7 @@ available.
 
 #ifndef __CO_CLOSURE_H__
 #define __CO_CLOSURE_H__
+
 struct stCoClosure_t {
 public:
   virtual void exec() = 0;
@@ -29,10 +30,17 @@ public:
 //-- 1.1 comac_argc
 
 #define comac_get_args_cnt(...) comac_arg_n(__VA_ARGS__)
-#define comac_arg_n(_0, _1, _2, _3, _4, _5, _6, _7, N, ...) N
+// 返回 0~7后面的 “N” 表示参数个数，可见最多支持7个参数
+#define comac_arg_n(_0, _1, _2, _3, _4, _5, _6, _7, N, ...) N 
 #define comac_args_seqs() 7, 6, 5, 4, 3, 2, 1, 0
+
 #define comac_join_1(x, y) x##y
 
+// 这是一个很巧妙的获取宏参数个数的方法，注意：这里最多支持7个参数，直接看例子：
+// comac_argc(A, B, C, D, E) 
+//    -> comac_get_args_cnt(0, A, B, C, D, E, 7, 6, 5, 4, 3, 2, 1, 0) 
+//    -> comac_arg_n(0, A, B, C, D, E, 7, 6, 5, 4, 3, 2, 1, 0) -> 5 
+// 5个参数
 #define comac_argc(...) comac_get_args_cnt(0, ##__VA_ARGS__, comac_args_seqs())
 #define comac_join(x, y) comac_join_1(x, y)
 
@@ -53,6 +61,7 @@ public:
 #else
 #define decl_typeof(i, a, ...) typedef decltype(a) typeof_##a;
 #endif
+
 #define impl_typeof(i, a, ...) typeof_##a &a;
 #define impl_typeof_cpy(i, a, ...) typeof_##a a;
 #define con_param_typeof(i, a, ...) typeof_##a &a##r,
@@ -88,4 +97,4 @@ public:
 
 #define co_func_end }
 
-#endif
+#endif // __CO_CLOSURE_H__

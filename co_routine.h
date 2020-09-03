@@ -37,10 +37,12 @@ struct stCoRoutineAttr_t {
     share_stack = NULL;
   }
 } __attribute__((packed));
+// _attribute__ ((packed)) 的作用就是告诉编译器取消结构在编译过程中的优化对齐，按照实际占用字节数进行对齐，
+// 是GCC特有的语法。类似于在目标结构体前写 #pragma pack(1)，即按1字节对其。
 
 struct stCoEpoll_t;
 typedef int (*pfn_co_eventloop_t)(void*);
-typedef void *(*pfn_co_routine_t)(void*);
+typedef void* (*pfn_co_routine_t)(void*);
 
 // 2.co_routine
 

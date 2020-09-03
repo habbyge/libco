@@ -32,3 +32,9 @@ README.md
 *.exe
 *.out
 *.app
+
+# 忽略ccls的cache文件
+.ccls-cache
+.ccls-cache/*
+build/
+build/*

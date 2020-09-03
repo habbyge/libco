@@ -61,7 +61,7 @@ static inline pid_t GetPid() {
   char **p = (char **)pthread_self();
   return p ? *(pid_t *)(p + 18) : getpid();
 }
-static rpchook_t *g_rpchook_socket_fd[102400] = {0};
+static rpchook_t* g_rpchook_socket_fd[102400] = {0};
 
 typedef int (*socket_pfn_t)(int domain, int type, int protocol);
 typedef int (*connect_pfn_t)(int socket, const struct sockaddr *address,
@@ -134,7 +134,7 @@ static __res_state_pfn_t g_sys___res_state_func =
     (__res_state_pfn_t)dlsym(RTLD_NEXT, "__res_state");
 
 static gethostbyname_pfn_t g_sys_gethostbyname_func =
-    (gethostbyname_pfn_t)dlsym(RTLD_NEXT, "gethostbyname");
+    (gethostbyname_pfn_t) dlsym(RTLD_NEXT, "gethostbyname");
 
 static __poll_pfn_t g_sys___poll_func =
     (__poll_pfn_t)dlsym(RTLD_NEXT, "__poll");
@@ -788,17 +788,16 @@ int unsetenv(const char *n) {
 char *getenv(const char* n) {
   HOOK_SYS_FUNC(getenv)
   if (co_is_enable_sys_hook() && g_co_sysenv.data) {
-    stCoRoutine_t *self = co_self();
+    stCoRoutine_t* self = co_self();
 
-    stCoSysEnv_t name = {(char *)n, 0};
+    stCoSysEnv_t name = {(char*) n, 0};
 
     if (!self->pvEnv) {
       self->pvEnv = dup_co_sysenv_arr(&g_co_sysenv);
     }
-    stCoSysEnvArr_t *arr = (stCoSysEnvArr_t *)(self->pvEnv);
+    stCoSysEnvArr_t* arr = (stCoSysEnvArr_t*) (self->pvEnv);
 
-    stCoSysEnv_t *e = (stCoSysEnv_t *)bsearch(&name, arr->data, arr->cnt,
-                                              sizeof(name), co_sysenv_comp);
+    stCoSysEnv_t* e = (stCoSysEnv_t*) bsearch(&name, arr->data, arr->cnt, sizeof(name), co_sysenv_comp);
 
     if (e) {
       return e->value;
@@ -806,9 +805,9 @@ char *getenv(const char* n) {
   }
   return g_sys_getenv_func(n);
 }
-struct hostent *co_gethostbyname(const char *name);
+struct hostent* co_gethostbyname(const char *name);
 
-struct hostent *gethostbyname(const char *name) {
+struct hostent* gethostbyname(const char *name) {
   HOOK_SYS_FUNC(gethostbyname);
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
@@ -825,16 +824,46 @@ struct res_state_wrap {
   struct __res_state state;
 };
 CO_ROUTINE_SPECIFIC(res_state_wrap, __co_state_wrap);
+// FIXME: ----------------------------------------------------------------------------上面的宏定义展开
+  // static pthread_once_t _routine_once_res_state_wrap = PTHREAD_ONCE_INIT;              
+  // static pthread_key_t _routine_key_res_state_wrap;                                    
+  // static int _routine_init_res_state_wrap = 0;                                         
+  // static void _routine_make_key_res_state_wrap() {                                     
+  //   (void) pthread_key_create(&_routine_key_res_state_wrap, NULL);                     
+  // }                                                                            
+  // template <typename T> 
+  // class clsRoutineData_routine_res_state_wrap {                  
+  // public:                                                                     
+  //   inline T* operator->() {                                                  
+  //     if (!_routine_init_res_state_wrap) {                                            
+  //       pthread_once(&_routine_once_res_state_wrap, _routine_make_key_res_state_wrap);        
+  //       _routine_init_res_state_wrap = 1;
+  //     }
+  //     T* p = (T*) co_getspecific(_routine_key_res_state_wrap);
+  //     if (!p) {
+  //       p = (T*) calloc(1, sizeof(T));
+  //       int ret = co_setspecific(_routine_key_res_state_wrap, p);
+  //       if (ret) {
+  //         if (p) {
+  //           free(p);
+  //           p = NULL;
+  //         }
+  //       }
+  //     }
+  //     return p;
+  //   }
+  // };
+  // static clsRoutineData_routine_res_state_wrap<res_state_wrap> __co_state_wrap;
+// FIXME: ----------------------------------------------------------------------------上面的宏定义展开
 
 extern "C" {
 
 res_state __res_state() {
   HOOK_SYS_FUNC(__res_state);
-
+  
   if (!co_is_enable_sys_hook()) {
     return g_sys___res_state_func();
   }
-
   return &(__co_state_wrap->state);
 }
 

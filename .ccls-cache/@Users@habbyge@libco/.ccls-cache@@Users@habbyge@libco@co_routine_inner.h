@@ -40,15 +40,15 @@ struct stShareStack_t {
   stStackMem_t** stack_array;
 };
 
-struct stCoRoutine_t {
-  stCoRoutineEnv_t* env;
+struct stCoRoutine_t { // 协程实例
+  stCoRoutineEnv_t* env; // 协程实例数组
   pfn_co_routine_t pfn;
   void* arg;
   coctx_t ctx;
 
   char cStart;
   char cEnd;
-  char cIsMain;
+  char cIsMain; // 主协程？
   char cEnableSysHook;
   char cIsShareStack;
 
