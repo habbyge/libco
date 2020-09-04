@@ -41,11 +41,17 @@ available.
 #include <sys/syscall.h>
 #include <unistd.h>
 
+// 腾讯的libco使用了hook技术，做到了在遇到阻塞IO时自动切换协程，（由事件循环co_eventloop检测的）阻塞IO完成时恢复协程，
+// 简化异步回调为相对同步方式的功能。其没有使用显示的调度器来管理所有协程（保存协程的相关数据），在协程切换及恢复之间主要
+// 依靠epoll_event.data.ptr来传递恢复协程所需的数据。
+
 extern "C" {
-extern void coctx_swap(coctx_t *, coctx_t *) asm("coctx_swap");
+  extern void coctx_swap(coctx_t*, coctx_t*) asm("coctx_swap");
 };
+
 using namespace std;
-stCoRoutine_t *GetCurrCo(stCoRoutineEnv_t *env);
+
+stCoRoutine_t* GetCurrCo(stCoRoutineEnv_t *env);
 struct stCoEpoll_t;
 
 // 代表一个thread中的所有协程
@@ -107,39 +113,34 @@ static unsigned long long GetTickMS() {
 }
 
 /* no longer use
-static pid_t GetPid()
-{
-    static __thread pid_t pid = 0;
-    static __thread pid_t tid = 0;
-    if( !pid || !tid || pid != getpid() )
-    {
-        pid = getpid();
+static pid_t GetPid() {
+  static __thread pid_t pid = 0;
+  static __thread pid_t tid = 0;
+  if(!pid || !tid || pid != getpid()) {
+    pid = getpid();
 #if defined( __APPLE__ )
-                tid = syscall( SYS_gettid );
-                if( -1 == (long)tid )
-                {
-                        tid = pid;
-                }
-#elif defined( __FreeBSD__ )
-                syscall(SYS_thr_self, &tid);
-                if( tid < 0 )
-                {
-                        tid = pid;
-                }
-#else
-        tid = syscall( __NR_gettid );
-#endif
-
+    tid = syscall( SYS_gettid );
+    if (-1 == (long)tid) {
+      tid = pid;
     }
-    return tid;
-
+#elif defined( __FreeBSD__ )
+    syscall(SYS_thr_self, &tid);
+    if(tid < 0) {
+      tid = pid;
+    }
+#else
+    tid = syscall( __NR_gettid );
+#endif
+  }
+  return tid;
 }
-static pid_t GetPid()
-{
-        char **p = (char**)pthread_self();
-        return p ? *(pid_t*)(p + 18) : getpid();
+
+static pid_t GetPid() {
+  char** p = (char**) pthread_self();
+  return p ? *(pid_t*)(p + 18) : getpid();
 }
 */
+
 template <class T, class TLink> void RemoveFromLink(T *ap) {
   TLink *lst = ap->pLink;
   if (!lst)
@@ -170,8 +171,8 @@ template <class T, class TLink> void RemoveFromLink(T *ap) {
   ap->pLink = NULL;
 }
 
-template <class TNode, class TLink>
-void inline AddTail(TLink *apLink, TNode *ap) {
+template<typename TNode, typename TLink>
+void inline AddTail(TLink* apLink, TNode* ap) {
   if (ap->pLink) {
     return;
   }
@@ -186,7 +187,8 @@ void inline AddTail(TLink *apLink, TNode *ap) {
   }
   ap->pLink = apLink;
 }
-template <class TNode, class TLink> void inline PopHead(TLink *apLink) {
+template<typename TNode, typename TLink> 
+void inline PopHead(TLink* apLink) {
   if (!apLink->head) {
     return;
   }
