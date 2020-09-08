@@ -41,7 +41,7 @@ struct stShareStack_t {
 };
 
 struct stCoRoutine_t { // 协程实例
-  stCoRoutineEnv_t* env; // 协程实例数组
+  stCoRoutineEnv_t* env; // 协程环境
   pfn_co_routine_t pfn;
   void* arg;
   coctx_t ctx;

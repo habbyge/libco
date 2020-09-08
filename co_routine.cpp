@@ -794,9 +794,10 @@ stCoRoutine_t* GetCurrThreadCo() {
 }
 
 typedef int (*poll_pfn_t)(struct pollfd fds[], nfds_t nfds, int timeout);
-int co_poll_inner(stCoEpoll_t* ctx, struct pollfd fds[], nfds_t nfds,
-                  int timeout, poll_pfn_t pollfunc) {
 
+int co_poll_inner(stCoEpoll_t* ctx, struct pollfd fds[], 
+                  nfds_t nfds, int timeout, poll_pfn_t pollfunc) {
+                    
   if (timeout == 0) {
     return pollfunc(fds, nfds, timeout);
   }

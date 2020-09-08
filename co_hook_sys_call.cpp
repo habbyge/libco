@@ -605,8 +605,8 @@ ssize_t recv(int socket, void *buffer, size_t length, int flags) {
   return readret;
 }
 
-extern int co_poll_inner(stCoEpoll_t* ctx, struct pollfd fds[], nfds_t nfds,
-                         int timeout, poll_pfn_t pollfunc);
+extern int co_poll_inner(stCoEpoll_t* ctx, struct pollfd fds[], 
+                         nfds_t nfds, int timeout, poll_pfn_t pollfunc);
 
 int poll(struct pollfd fds[], nfds_t nfds, int timeout) {
   HOOK_SYS_FUNC(poll);
@@ -650,6 +650,7 @@ int poll(struct pollfd fds[], nfds_t nfds, int timeout) {
   free(fds_merge);
   return ret;
 }
+
 int setsockopt(int fd, int level, int option_name, const void* option_value, socklen_t option_len) {
   HOOK_SYS_FUNC(setsockopt);
 
@@ -759,30 +760,32 @@ int fcntl(int fildes, int cmd, ...) {
 }
 
 struct stCoSysEnv_t {
-  char *name;
-  char *value;
+  char* name;
+  char* value;
 };
 
 struct stCoSysEnvArr_t {
   stCoSysEnv_t* data;
   size_t cnt;
 };
+
 static stCoSysEnvArr_t* dup_co_sysenv_arr(stCoSysEnvArr_t* arr) {
-  stCoSysEnvArr_t* lp = (stCoSysEnvArr_t *)calloc(sizeof(stCoSysEnvArr_t), 1);
+  stCoSysEnvArr_t *lp = (stCoSysEnvArr_t*) calloc(sizeof(stCoSysEnvArr_t), 1);
   if (arr->cnt) {
-    lp->data = (stCoSysEnv_t *)calloc(sizeof(stCoSysEnv_t) * arr->cnt, 1);
+    lp->data = (stCoSysEnv_t*) calloc(sizeof(stCoSysEnv_t) * arr->cnt, 1);
     lp->cnt = arr->cnt;
     memcpy(lp->data, arr->data, sizeof(stCoSysEnv_t) * arr->cnt);
   }
   return lp;
 }
 
-static int co_sysenv_comp(const void *a, const void *b) {
-  return strcmp(((stCoSysEnv_t *)a)->name, ((stCoSysEnv_t *)b)->name);
+static int co_sysenv_comp(const void* a, const void* b) {
+  return strcmp(((stCoSysEnv_t*) a)->name, ((stCoSysEnv_t*) b)->name);
 }
+
 static stCoSysEnvArr_t g_co_sysenv = {0};
 
-void co_set_env_list(const char *name[], size_t cnt) {
+void co_set_env_list(const char* name[], size_t cnt) {
   if (g_co_sysenv.data) {
     return;
   }
@@ -795,8 +798,8 @@ void co_set_env_list(const char *name[], size_t cnt) {
   }
   if (g_co_sysenv.cnt > 1) {
     qsort(g_co_sysenv.data, g_co_sysenv.cnt, sizeof(stCoSysEnv_t), co_sysenv_comp);
-    stCoSysEnv_t *lp = g_co_sysenv.data;
-    stCoSysEnv_t *lq = g_co_sysenv.data + 1;
+    stCoSysEnv_t* lp = g_co_sysenv.data;
+    stCoSysEnv_t* lq = g_co_sysenv.data + 1;
     for (size_t i = 1; i < g_co_sysenv.cnt; i++) {
       if (strcmp(lp->name, lq->name)) {
         ++lp;
@@ -810,20 +813,19 @@ void co_set_env_list(const char *name[], size_t cnt) {
   }
 }
 
-int setenv(const char *n, const char *value, int overwrite) {
+int setenv(const char* n, const char* value, int overwrite) {
   HOOK_SYS_FUNC(setenv)
   if (co_is_enable_sys_hook() && g_co_sysenv.data) {
-    stCoRoutine_t *self = co_self();
+    stCoRoutine_t* self = co_self();
     if (self) {
       if (!self->pvEnv) {
         self->pvEnv = dup_co_sysenv_arr(&g_co_sysenv);
       }
-      stCoSysEnvArr_t *arr = (stCoSysEnvArr_t *)(self->pvEnv);
+      stCoSysEnvArr_t* arr = (stCoSysEnvArr_t*) (self->pvEnv);
 
       stCoSysEnv_t name = {(char *)n, 0};
 
-      stCoSysEnv_t *e = (stCoSysEnv_t *)bsearch(&name, arr->data, arr->cnt,
-                                                sizeof(name), co_sysenv_comp);
+      stCoSysEnv_t* e = (stCoSysEnv_t*) bsearch(&name, arr->data, arr->cnt, sizeof(name), co_sysenv_comp);
 
       if (e) {
         if (overwrite || !e->value) {
@@ -864,8 +866,10 @@ int unsetenv(const char *n) {
   }
   return g_sys_unsetenv_func(n);
 }
+
 char* getenv(const char* n) {
   HOOK_SYS_FUNC(getenv)
+
   if (co_is_enable_sys_hook() && g_co_sysenv.data) {
     stCoRoutine_t* self = co_self();
 
@@ -884,6 +888,7 @@ char* getenv(const char* n) {
   }
   return g_sys_getenv_func(n);
 }
+
 struct hostent* co_gethostbyname(const char *name);
 
 struct hostent* gethostbyname(const char *name) {
@@ -902,6 +907,7 @@ struct hostent* gethostbyname(const char *name) {
 struct res_state_wrap {
   struct __res_state state;
 };
+
 CO_ROUTINE_SPECIFIC(res_state_wrap, __co_state_wrap);
 // FIXME: ----------------------------------------------------------------------------上面的宏定义展开
   // static pthread_once_t _routine_once_res_state_wrap = PTHREAD_ONCE_INIT;              
