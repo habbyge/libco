@@ -73,7 +73,7 @@ typedef long long ll64_t;
  * 说句题外话, 其实我觉得该结构是非必需的, O_NONBLOCK属性可通过未hook的fcntl函数获得, 超时时间采用全局设置也未尝不可.
  */
 struct rpchook_t {
-  int user_flag;                // 套接字的阻塞/非阻塞属性
+  int user_flag;                // 套接字的阻塞/非阻塞属性(O_NONBLOCK)
   struct sockaddr_in dest;      // 套接字目的主机地址
   int domain;                   // 套接字类型：AF_LOCAL, AF_INET
 
@@ -96,39 +96,39 @@ static inline pid_t GetPid() {
 static rpchook_t* g_rpchook_socket_fd[102400] = {0};
 
 /** 对每个被hook的系统调用声明一种函数指针类型 */
-typedef int (*socket_pfn_t)(int domain, int type, int protocol);
-typedef int (*connect_pfn_t)(int socket, const struct sockaddr* address, socklen_t address_len);
-typedef int (*close_pfn_t)(int fd);
-typedef ssize_t (*read_pfn_t)(int fildes, void* buf, size_t nbyte);
-typedef ssize_t (*write_pfn_t)(int fildes, const void *buf, size_t nbyte);
+typedef int (*socket_pfn_t) (int domain, int type, int protocol);
+typedef int (*connect_pfn_t) (int socket, const struct sockaddr* address, socklen_t address_len);
+typedef int (*close_pfn_t) (int fd);
+typedef ssize_t (*read_pfn_t) (int fildes, void* buf, size_t nbyte);
+typedef ssize_t (*write_pfn_t) (int fildes, const void* buf, size_t nbyte);
 
-typedef ssize_t (*sendto_pfn_t)(int socket, const void* message, size_t length,
-                                int flags, const struct sockaddr *dest_addr,
-                                socklen_t dest_len);
+typedef ssize_t (*sendto_pfn_t) (int socket, const void* message, size_t length,
+                                 int flags, const struct sockaddr *dest_addr,
+                                 socklen_t dest_len);
 
-typedef ssize_t (*recvfrom_pfn_t)(int socket, void* buffer, size_t length,
-                                  int flags, struct sockaddr *address,
-                                  socklen_t* address_len);
+typedef ssize_t (*recvfrom_pfn_t) (int socket, void* buffer, size_t length,
+                                   int flags, struct sockaddr* address,
+                                   socklen_t* address_len);
 
-typedef ssize_t (*send_pfn_t)(int socket, const void *buffer, size_t length, int flags);
-typedef ssize_t (*recv_pfn_t)(int socket, void *buffer, size_t length, int flags);
+typedef ssize_t (*send_pfn_t) (int socket, const void* buffer, size_t length, int flags);
+typedef ssize_t (*recv_pfn_t) (int socket, void* buffer, size_t length, int flags);
 
-typedef int (*poll_pfn_t)(struct pollfd fds[], nfds_t nfds, int timeout);
-typedef int (*setsockopt_pfn_t)(int socket, int level, int option_name,
-                                const void *option_value, socklen_t option_len);
+typedef int (*poll_pfn_t) (struct pollfd fds[], nfds_t nfds, int timeout);
+typedef int (*setsockopt_pfn_t) (int socket, int level, int option_name,
+                                 const void* option_value, socklen_t option_len);
 
-typedef int (*fcntl_pfn_t)(int fildes, int cmd, ...);
-typedef struct tm *(*localtime_r_pfn_t)(const time_t *timep, struct tm *result);
+typedef int (*fcntl_pfn_t) (int fildes, int cmd, ...);
+typedef struct tm* (*localtime_r_pfn_t) (const time_t *timep, struct tm *result);
 
-typedef void *(*pthread_getspecific_pfn_t)(pthread_key_t key);
-typedef int (*pthread_setspecific_pfn_t)(pthread_key_t key, const void *value);
+typedef void* (*pthread_getspecific_pfn_t) (pthread_key_t key);
+typedef int (*pthread_setspecific_pfn_t) (pthread_key_t key, const void* value);
 
-typedef int (*setenv_pfn_t)(const char* name, const char* value, int overwrite);
-typedef int (*unsetenv_pfn_t)(const char* name);
-typedef char *(*getenv_pfn_t)(const char* name);
-typedef hostent *(*gethostbyname_pfn_t)(const char *name);
-typedef res_state (*__res_state_pfn_t)();
-typedef int (*__poll_pfn_t)(struct pollfd fds[], nfds_t nfds, int timeout);
+typedef int (*setenv_pfn_t) (const char* name, const char* value, int overwrite);
+typedef int (*unsetenv_pfn_t) (const char* name);
+typedef char *(*getenv_pfn_t) (const char* name);
+typedef hostent *(*gethostbyname_pfn_t) (const char *name);
+typedef res_state (*__res_state_pfn_t) ();
+typedef int (*__poll_pfn_t) (struct pollfd fds[], nfds_t nfds, int timeout);
 
 /**
  * dlsym()函数是Linux的系统调用，获取共享对象(.so)或可执行文件(.o)中符号的地址，
@@ -143,31 +143,31 @@ typedef int (*__poll_pfn_t)(struct pollfd fds[], nfds_t nfds, int timeout);
  * （或者就此而言，在存在多个预加载层的情况下，函数的“下一个”定义）。
  */
 static socket_pfn_t g_sys_socket_func = (socket_pfn_t) dlsym(RTLD_NEXT, "socket");
-static connect_pfn_t g_sys_connect_func = (connect_pfn_t)dlsym(RTLD_NEXT, "connect");
-static close_pfn_t g_sys_close_func = (close_pfn_t)dlsym(RTLD_NEXT, "close");
+static connect_pfn_t g_sys_connect_func = (connect_pfn_t) dlsym(RTLD_NEXT, "connect");
+static close_pfn_t g_sys_close_func = (close_pfn_t) dlsym(RTLD_NEXT, "close");
 
-static read_pfn_t g_sys_read_func = (read_pfn_t)dlsym(RTLD_NEXT, "read");
-static write_pfn_t g_sys_write_func = (write_pfn_t)dlsym(RTLD_NEXT, "write");
+static read_pfn_t g_sys_read_func = (read_pfn_t) dlsym(RTLD_NEXT, "read");
+static write_pfn_t g_sys_write_func = (write_pfn_t) dlsym(RTLD_NEXT, "write");
 
 static sendto_pfn_t g_sys_sendto_func = (sendto_pfn_t) dlsym(RTLD_NEXT, "sendto");
-static recvfrom_pfn_t g_sys_recvfrom_func = (recvfrom_pfn_t)dlsym(RTLD_NEXT, "recvfrom");
+static recvfrom_pfn_t g_sys_recvfrom_func = (recvfrom_pfn_t) dlsym(RTLD_NEXT, "recvfrom");
 
-static send_pfn_t g_sys_send_func = (send_pfn_t)dlsym(RTLD_NEXT, "send");
-static recv_pfn_t g_sys_recv_func = (recv_pfn_t)dlsym(RTLD_NEXT, "recv");
+static send_pfn_t g_sys_send_func = (send_pfn_t) dlsym(RTLD_NEXT, "send");
+static recv_pfn_t g_sys_recv_func = (recv_pfn_t) dlsym(RTLD_NEXT, "recv");
 
-static poll_pfn_t g_sys_poll_func = (poll_pfn_t)dlsym(RTLD_NEXT, "poll");
+static poll_pfn_t g_sys_poll_func = (poll_pfn_t) dlsym(RTLD_NEXT, "poll");
 
 static setsockopt_pfn_t g_sys_setsockopt_func = (setsockopt_pfn_t) dlsym(RTLD_NEXT, "setsockopt");
-static fcntl_pfn_t g_sys_fcntl_func = (fcntl_pfn_t)dlsym(RTLD_NEXT, "fcntl");
+static fcntl_pfn_t g_sys_fcntl_func = (fcntl_pfn_t) dlsym(RTLD_NEXT, "fcntl");
 
-static setenv_pfn_t g_sys_setenv_func = (setenv_pfn_t)dlsym(RTLD_NEXT, "setenv");
-static unsetenv_pfn_t g_sys_unsetenv_func = (unsetenv_pfn_t)dlsym(RTLD_NEXT, "unsetenv");
-static getenv_pfn_t g_sys_getenv_func = (getenv_pfn_t)dlsym(RTLD_NEXT, "getenv");
-static __res_state_pfn_t g_sys___res_state_func = (__res_state_pfn_t)dlsym(RTLD_NEXT, "__res_state");
+static setenv_pfn_t g_sys_setenv_func = (setenv_pfn_t) dlsym(RTLD_NEXT, "setenv");
+static unsetenv_pfn_t g_sys_unsetenv_func = (unsetenv_pfn_t) dlsym(RTLD_NEXT, "unsetenv");
+static getenv_pfn_t g_sys_getenv_func = (getenv_pfn_t) dlsym(RTLD_NEXT, "getenv");
+static __res_state_pfn_t g_sys___res_state_func = (__res_state_pfn_t) dlsym(RTLD_NEXT, "__res_state");
 
 static gethostbyname_pfn_t g_sys_gethostbyname_func = (gethostbyname_pfn_t) dlsym(RTLD_NEXT, "gethostbyname");
 
-static __poll_pfn_t g_sys___poll_func = (__poll_pfn_t)dlsym(RTLD_NEXT, "__poll");
+static __poll_pfn_t g_sys___poll_func = (__poll_pfn_t) dlsym(RTLD_NEXT, "__poll");
 
 /*
 static pthread_getspecific_pfn_t g_sys_pthread_getspecific_func
@@ -320,27 +320,28 @@ int co_accept(int fd, struct sockaddr* addr, socklen_t* len) {
 
 /** 
  * connect - 被hook后的connect函数, 主要是初始化(g_rpchook_socket_fd中)
- * 套接字fd对应的rpchook_t类型变量的dest成员 
+ * 套接字fd对应的rpchook_t类型变量的dest成员
  */
-int connect(int fd, const struct sockaddr *address, socklen_t address_len) {
+int connect(int fd, const struct sockaddr* address, socklen_t address_len) {
   HOOK_SYS_FUNC(connect);
 
-  if (!co_is_enable_sys_hook()) {
+  if (!co_is_enable_sys_hook()) { // 没有开启系统api hook机制
     return g_sys_connect_func(fd, address, address_len);
   }
 
   // 1.sys call
+  // 系统原始调用，之前socket阶段已经对该fd设置了NONBLOCK状态标志了
   int ret = g_sys_connect_func(fd, address, address_len);
 
-  rpchook_t *lp = get_by_fd(fd);
+  rpchook_t* lp = get_by_fd(fd);
   if (!lp)
     return ret;
 
   if (sizeof(lp->dest) >= address_len) {
-    memcpy(&(lp->dest), address, (int)address_len);
+    memcpy(&(lp->dest), address, (int) address_len);
   }
   if (O_NONBLOCK & lp->user_flag) {
-    return ret;
+    return ret; // 非阻塞状态的连接，这里返回了
   }
 
   if (!(ret < 0 && errno == EINPROGRESS)) {
@@ -358,7 +359,7 @@ int connect(int fd, const struct sockaddr *address, socklen_t address_len) {
 
     pollret = poll(&pf, 1, 25000);
 
-    if (1 == pollret) {
+    if (pollret == 1) {
       break;
     }
   }
@@ -403,14 +404,14 @@ int close(int fd) {
 /**
  * read - 被hook后的read函数, 主要是向内核注册套接字fd上的事件 
  */
-ssize_t read(int fd, void *buf, size_t nbyte) {
+ssize_t read(int fd, void* buf, size_t nbyte) {
   HOOK_SYS_FUNC(read);
 
-  // 协程禁止hook系统调用, 则直接调用系统调用
-  if (!co_is_enable_sys_hook()) { // TODO: 这里继续......
+  // 协程禁止hook系统调用, 则直接调用系统原生read()
+  if (!co_is_enable_sys_hook()) {
     return g_sys_read_func(fd, buf, nbyte);
   }
-  rpchook_t *lp = get_by_fd(fd);
+  rpchook_t* lp = get_by_fd(fd);
 
   if (!lp || (O_NONBLOCK & lp->user_flag)) {
     ssize_t ret = g_sys_read_func(fd, buf, nbyte);
@@ -424,7 +425,7 @@ ssize_t read(int fd, void *buf, size_t nbyte) {
 
   int pollret = poll(&pf, 1, timeout);
 
-  ssize_t readret = g_sys_read_func(fd, (char *)buf, nbyte);
+  ssize_t readret = g_sys_read_func(fd, (char*) buf, nbyte);
 
   if (readret < 0) {
     co_log_err("CO_ERR: read fd %d ret %ld errno %d poll ret %d timeout %d", 
@@ -433,13 +434,13 @@ ssize_t read(int fd, void *buf, size_t nbyte) {
 
   return readret;
 }
-ssize_t write(int fd, const void *buf, size_t nbyte) {
+ssize_t write(int fd, const void* buf, size_t nbyte) {
   HOOK_SYS_FUNC(write);
 
   if (!co_is_enable_sys_hook()) {
     return g_sys_write_func(fd, buf, nbyte);
   }
-  rpchook_t *lp = get_by_fd(fd);
+  rpchook_t* lp = get_by_fd(fd);
 
   if (!lp || (O_NONBLOCK & lp->user_flag)) {
     ssize_t ret = g_sys_write_func(fd, buf, nbyte);
@@ -491,7 +492,7 @@ ssize_t sendto(int socket, const void *message, size_t length, int flags,
     return g_sys_sendto_func(socket, message, length, flags, dest_addr, dest_len);
   }
 
-  rpchook_t *lp = get_by_fd(socket);
+  rpchook_t* lp = get_by_fd(socket);
   if (!lp || (O_NONBLOCK & lp->user_flag)) {
     return g_sys_sendto_func(socket, message, length, flags, dest_addr, dest_len);
   }
@@ -518,7 +519,7 @@ ssize_t recvfrom(int socket, void *buffer, size_t length, int flags,
     return g_sys_recvfrom_func(socket, buffer, length, flags, address, address_len);
   }
 
-  rpchook_t *lp = get_by_fd(socket);
+  rpchook_t* lp = get_by_fd(socket);
   if (!lp || (O_NONBLOCK & lp->user_flag)) {
     return g_sys_recvfrom_func(socket, buffer, length, flags, address, address_len);
   }
@@ -546,8 +547,7 @@ ssize_t send(int socket, const void *buffer, size_t length, int flags) {
     return g_sys_send_func(socket, buffer, length, flags);
   }
   size_t wrotelen = 0;
-  int timeout =
-      (lp->write_timeout.tv_sec * 1000) + (lp->write_timeout.tv_usec / 1000);
+  int timeout = (lp->write_timeout.tv_sec * 1000) + (lp->write_timeout.tv_usec / 1000);
 
   ssize_t writeret = g_sys_send_func(socket, buffer, length, flags);
   if (writeret == 0) {
@@ -582,7 +582,7 @@ ssize_t recv(int socket, void *buffer, size_t length, int flags) {
   if (!co_is_enable_sys_hook()) {
     return g_sys_recv_func(socket, buffer, length, flags);
   }
-  rpchook_t *lp = get_by_fd(socket);
+  rpchook_t* lp = get_by_fd(socket);
 
   if (!lp || (O_NONBLOCK & lp->user_flag)) {
     return g_sys_recv_func(socket, buffer, length, flags);
@@ -605,7 +605,7 @@ ssize_t recv(int socket, void *buffer, size_t length, int flags) {
   return readret;
 }
 
-extern int co_poll_inner(stCoEpoll_t *ctx, struct pollfd fds[], nfds_t nfds,
+extern int co_poll_inner(stCoEpoll_t* ctx, struct pollfd fds[], nfds_t nfds,
                          int timeout, poll_pfn_t pollfunc);
 
 int poll(struct pollfd fds[], nfds_t nfds, int timeout) {
@@ -650,16 +650,16 @@ int poll(struct pollfd fds[], nfds_t nfds, int timeout) {
   free(fds_merge);
   return ret;
 }
-int setsockopt(int fd, int level, int option_name, const void *option_value, socklen_t option_len) {
+int setsockopt(int fd, int level, int option_name, const void* option_value, socklen_t option_len) {
   HOOK_SYS_FUNC(setsockopt);
 
   if (!co_is_enable_sys_hook()) {
     return g_sys_setsockopt_func(fd, level, option_name, option_value, option_len);
   }
-  rpchook_t *lp = get_by_fd(fd);
+  rpchook_t* lp = get_by_fd(fd);
 
   if (lp && SOL_SOCKET == level) {
-    struct timeval *val = (struct timeval *)option_value;
+    struct timeval* val = (struct timeval*) option_value;
     if (SO_RCVTIMEO == option_name) {
       memcpy(&lp->read_timeout, val, sizeof(*val));
     } else if (SO_SNDTIMEO == option_name) {
@@ -677,68 +677,80 @@ int fcntl(int fildes, int cmd, ...) {
   }
 
   va_list arg_list;
-  va_start(arg_list, cmd);
+  va_start(arg_list, cmd); // arg_list指向第一个可变参数列表(...)中的第1个可变参数
 
   int ret = -1;
-  rpchook_t *lp = get_by_fd(fildes);
+  rpchook_t* lp = get_by_fd(fildes);
   switch (cmd) {
   case F_DUPFD: {
     int param = va_arg(arg_list, int);
     ret = g_sys_fcntl_func(fildes, cmd, param);
     break;
   }
+  
   case F_GETFD: {
     ret = g_sys_fcntl_func(fildes, cmd);
     break;
   }
+  
   case F_SETFD: {
     int param = va_arg(arg_list, int);
     ret = g_sys_fcntl_func(fildes, cmd, param);
     break;
   }
+
   case F_GETFL: {
     ret = g_sys_fcntl_func(fildes, cmd);
     if (lp && !(lp->user_flag & O_NONBLOCK)) {
       ret = ret & (~O_NONBLOCK);
     }
+  
     break;
   }
+  
   case F_SETFL: {
     int param = va_arg(arg_list, int);
     int flag = param;
     if (co_is_enable_sys_hook() && lp) {
-      flag |= O_NONBLOCK;
+      flag |= O_NONBLOCK; // 非阻塞
     }
     ret = g_sys_fcntl_func(fildes, cmd, flag);
     if (0 == ret && lp) {
       lp->user_flag = param;
     }
+  
     break;
   }
+
   case F_GETOWN: {
     ret = g_sys_fcntl_func(fildes, cmd);
     break;
   }
+  
   case F_SETOWN: {
     int param = va_arg(arg_list, int);
     ret = g_sys_fcntl_func(fildes, cmd, param);
     break;
   }
+
   case F_GETLK: {
-    struct flock *param = va_arg(arg_list, struct flock *);
+    struct flock* param = va_arg(arg_list, struct flock*);
     ret = g_sys_fcntl_func(fildes, cmd, param);
     break;
   }
+  
   case F_SETLK: {
-    struct flock *param = va_arg(arg_list, struct flock *);
+    struct flock* param = va_arg(arg_list, struct flock*);
     ret = g_sys_fcntl_func(fildes, cmd, param);
     break;
   }
+
   case F_SETLKW: {
-    struct flock *param = va_arg(arg_list, struct flock *);
+    struct flock* param = va_arg(arg_list, struct flock*);
     ret = g_sys_fcntl_func(fildes, cmd, param);
     break;
   }
+
   }
 
   va_end(arg_list);
@@ -750,12 +762,13 @@ struct stCoSysEnv_t {
   char *name;
   char *value;
 };
+
 struct stCoSysEnvArr_t {
-  stCoSysEnv_t *data;
+  stCoSysEnv_t* data;
   size_t cnt;
 };
-static stCoSysEnvArr_t *dup_co_sysenv_arr(stCoSysEnvArr_t *arr) {
-  stCoSysEnvArr_t *lp = (stCoSysEnvArr_t *)calloc(sizeof(stCoSysEnvArr_t), 1);
+static stCoSysEnvArr_t* dup_co_sysenv_arr(stCoSysEnvArr_t* arr) {
+  stCoSysEnvArr_t* lp = (stCoSysEnvArr_t *)calloc(sizeof(stCoSysEnvArr_t), 1);
   if (arr->cnt) {
     lp->data = (stCoSysEnv_t *)calloc(sizeof(stCoSysEnv_t) * arr->cnt, 1);
     lp->cnt = arr->cnt;
@@ -851,7 +864,7 @@ int unsetenv(const char *n) {
   }
   return g_sys_unsetenv_func(n);
 }
-char *getenv(const char* n) {
+char* getenv(const char* n) {
   HOOK_SYS_FUNC(getenv)
   if (co_is_enable_sys_hook() && g_co_sysenv.data) {
     stCoRoutine_t* self = co_self();

@@ -49,7 +49,7 @@ struct stCoRoutine_t { // 协程实例
   char cStart;
   char cEnd;
   char cIsMain; // 主协程？
-  char cEnableSysHook;
+  char cEnableSysHook; // 是能系统api hook机制？
   char cIsShareStack;
 
   void* pvEnv;

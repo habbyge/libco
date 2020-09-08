@@ -779,7 +779,10 @@ void FreeEpoll(stCoEpoll_t *ctx) {
   free(ctx);
 }
 
-stCoRoutine_t *GetCurrCo(stCoRoutineEnv_t *env) {
+/**
+ * 获取当前协程
+ */ 
+stCoRoutine_t* GetCurrCo(stCoRoutineEnv_t* env) {
   return env->pCallStack[env->iCallStackSize - 1];
 }
 stCoRoutine_t* GetCurrThreadCo() {
@@ -791,8 +794,9 @@ stCoRoutine_t* GetCurrThreadCo() {
 }
 
 typedef int (*poll_pfn_t)(struct pollfd fds[], nfds_t nfds, int timeout);
-int co_poll_inner(stCoEpoll_t *ctx, struct pollfd fds[], nfds_t nfds,
+int co_poll_inner(stCoEpoll_t* ctx, struct pollfd fds[], nfds_t nfds,
                   int timeout, poll_pfn_t pollfunc) {
+
   if (timeout == 0) {
     return pollfunc(fds, nfds, timeout);
   }
@@ -800,21 +804,21 @@ int co_poll_inner(stCoEpoll_t *ctx, struct pollfd fds[], nfds_t nfds,
     timeout = INT_MAX;
   }
   int epfd = ctx->iEpollFd;
-  stCoRoutine_t *self = co_self();
+  stCoRoutine_t* self = co_self();
 
   // 1.struct change
-  stPoll_t &arg = *((stPoll_t *)malloc(sizeof(stPoll_t)));
+  stPoll_t& arg = *((stPoll_t*) malloc(sizeof(stPoll_t)));
   memset(&arg, 0, sizeof(arg));
 
   arg.iEpollFd = epfd;
-  arg.fds = (pollfd *)calloc(nfds, sizeof(pollfd));
+  arg.fds = (pollfd*) calloc(nfds, sizeof(pollfd));
   arg.nfds = nfds;
 
   stPollItem_t arr[2];
   if (nfds < sizeof(arr) / sizeof(arr[0]) && !self->cIsShareStack) {
     arg.pPollItems = arr;
   } else {
-    arg.pPollItems = (stPollItem_t *)malloc(nfds * sizeof(stPollItem_t));
+    arg.pPollItems = (stPollItem_t*) malloc(nfds * sizeof(stPollItem_t));
   }
   memset(arg.pPollItems, 0, nfds * sizeof(stPollItem_t));
 
@@ -857,9 +861,9 @@ int co_poll_inner(stCoEpoll_t *ctx, struct pollfd fds[], nfds_t nfds,
     co_log_err(
         "CO_ERR: AddTimeout ret %d now %lld timeout %d arg.ullExpireTime %lld",
         ret, now, timeout, arg.ullExpireTime);
+
     errno = EINVAL;
     iRaiseCnt = -1;
-
   } else {
     co_yield_env(co_get_curr_thread_env());
     iRaiseCnt = arg.iRaiseCnt;
@@ -888,24 +892,30 @@ int co_poll_inner(stCoEpoll_t *ctx, struct pollfd fds[], nfds_t nfds,
   return iRaiseCnt;
 }
 
-int co_poll(stCoEpoll_t *ctx, struct pollfd fds[], nfds_t nfds,
-            int timeout_ms) {
+int co_poll(stCoEpoll_t* ctx, struct pollfd fds[], nfds_t nfds, int timeout_ms) {
   return co_poll_inner(ctx, fds, nfds, timeout_ms, NULL);
 }
 
-void SetEpoll(stCoRoutineEnv_t *env, stCoEpoll_t *ev) { env->pEpoll = ev; }
-stCoEpoll_t *co_get_epoll_ct() {
+void SetEpoll(stCoRoutineEnv_t* env, stCoEpoll_t* ev) {
+  env->pEpoll = ev;
+}
+
+stCoEpoll_t* co_get_epoll_ct() {
   if (!co_get_curr_thread_env()) {
     co_init_curr_thread_env();
   }
   return co_get_curr_thread_env()->pEpoll;
 }
-struct stHookPThreadSpec_t {
-  stCoRoutine_t *co;
-  void *value;
 
-  enum { size = 1024 };
+struct stHookPThreadSpec_t {
+  stCoRoutine_t* co;
+  void* value;
+
+  enum {
+    size = 1024
+  };
 };
+
 void* co_getspecific(pthread_key_t key) {
   stCoRoutine_t* co = GetCurrThreadCo();
   if (!co || co->cIsMain) {
@@ -939,19 +949,22 @@ stCoRoutine_t* co_self() {
 
 // co cond
 struct stCoCond_t;
+
 struct stCoCondItem_t {
-  stCoCondItem_t *pPrev;
-  stCoCondItem_t *pNext;
-  stCoCond_t *pLink;
+  stCoCondItem_t* pPrev;
+  stCoCondItem_t* pNext;
+  stCoCond_t* pLink;
 
   stTimeoutItem_t timeout;
 };
+
 struct stCoCond_t {
   stCoCondItem_t* head;
   stCoCondItem_t* tail;
 };
-static void OnSignalProcessEvent(stTimeoutItem_t *ap) {
-  stCoRoutine_t *co = (stCoRoutine_t *)ap->pArg;
+
+static void OnSignalProcessEvent(stTimeoutItem_t* ap) {
+  stCoRoutine_t* co = (stCoRoutine_t*) ap->pArg;
   co_resume(co);
 }
 
@@ -967,6 +980,7 @@ int co_cond_signal(stCoCond_t* si) {
 
   return 0;
 }
+
 int co_cond_broadcast(stCoCond_t* si) {
   for (;;) {
     stCoCondItem_t* sp = co_cond_pop(si);
