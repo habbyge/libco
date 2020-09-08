@@ -59,7 +59,6 @@ static int SetNonBlock(int iSock) {
 }
 
 static void *readwrite_routine(void *arg) {
-
   co_enable_hook_sys();
 
   task_t* co = (task_t*) arg;
@@ -93,8 +92,10 @@ static void *readwrite_routine(void *arg) {
   }
   return 0;
 }
+
 int co_accept(int fd, struct sockaddr *addr, socklen_t *len);
-static void *accept_routine(void *) {
+
+static void* accept_routine(void*) {
   co_enable_hook_sys();
   printf("accept_routine\n");
   fflush(stdout);
@@ -112,7 +113,7 @@ static void *accept_routine(void *) {
     memset(&addr, 0, sizeof(addr));
     socklen_t len = sizeof(addr);
 
-    int fd = co_accept(g_listen_fd, (struct sockaddr *)&addr, &len);
+    int fd = co_accept(g_listen_fd, (struct sockaddr*)&addr, &len);
     if (fd < 0) {
       struct pollfd pf = {0};
       pf.fd = g_listen_fd;
@@ -133,7 +134,7 @@ static void *accept_routine(void *) {
   return 0;
 }
 
-static void SetAddr(const char *pszIP, const unsigned short shPort, struct sockaddr_in &addr) {
+static void SetAddr(const char* pszIP, const unsigned short shPort, struct sockaddr_in &addr) {
   bzero(&addr, sizeof(addr));
   addr.sin_family = AF_INET;
   addr.sin_port = htons(shPort);
