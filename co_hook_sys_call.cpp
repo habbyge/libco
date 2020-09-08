@@ -53,23 +53,26 @@ typedef long long ll64_t;
 // http://kaiyuan.me/2017/05/03/function_wrapper/
 // https://blog.csdn.net/breaksoftware/article/details/77340634
 
-// 简单来说，就是利用动态链接的原理来修改符号指向，从而达到『偷梁换柱』的编程效果。
-// 我们简单地来看一下 libco 是如何使用动态链接 Hook 系统函数的。事实上，libco 
-// 最大的特点就是将系统中的关于网络操作的阻塞函数全部进行相应的非侵入式改造，例如
-// 对于 read，write 函数，libco 均定义了自己的版本，然后通过 LD_PRELOAD 进行
-// 运行时的解析，从而来达到阻塞时自动让出协程，并在 IO 事件发生时唤醒协程的目的。
+// 在研究C++中协程机制时，发现有些实现通过hack掉glibc的read、write等IO操作函数，以达到迁移协程框架时，
+// 最小化代码改动，遂小小研究一下linux下的hook机制。
+
+// 简单来说，就是利用动态链接的原理来修改符号指向，从而达到『偷梁换柱』的编程效果。 我们简单地来看一下 libco 
+// 是如何使用动态链接 Hook 系统函数的。事实上，libco 最大的特点就是将系统中的关于网络操作的阻塞函数全部进行
+// 相应的非侵入式改造，例如对于 read，write 函数，libco 均定义了自己的版本，然后通过 LD_PRELOAD 进行运行
+// 时的解析，从而来达到阻塞时自动让出协程，并在 IO 事件发生时唤醒协程的目的。
+
+// LD_PRELOAD 作用：通过命令 export LD_PRELOAD="库文件路径"，设置要优先替换动态链接库，是个环境变量，用于
+// 动态库的加载，动态库加载的优先级最高，一般情况下，其加载顺序为LD_PRELOAD>LD_LIBRARY_PATH>/etc/ld.so.cache>/lib>/usr/lib。
 
 // Linux用户层Hook非常简单。我们只要定义一个和被Hook的API相同名称、参数、返回值的函数即可。
-// 比如我们需要Hook获取用户UID的函数getuid(原来是在libc.so中实现的)，则需要定义如下函数
 
 /** 
  * 套接字hook信息结构 - 存储hook函数中跟套接字相关的信息
  *
- * 为什么需要该结构呢? - 举例说明, 套接字的O_NONBLOCK属性决定了hook后的read函数是直接调用系统的read函数,
- * 还是先向内核注册事件(向内核注册事件时又需要读超时时间), 然后切换协程并等待事件发生时切换回该协程, 最后调用
- * 系统的read函数. 如果不把这些信息(是否O_NONBLOCK, 读写超时时间等)传递到被hook函数中, 我们就无法实现hook
+ * 为什么需要该结构呢? - 举例说明, 套接字的 O_NONBLOCK 属性决定了hook后的read函数是直接调用系统的 read 函数,
+ * 还是先向内核注册事件(向内核注册事件时又需要读超时时间), 然后 切换协程 并等待事件发生时 切换回该协程, 最后调用
+ * 系统的 read 函数. 如果不把这些信息(是否O_NONBLOCK, 读写超时时间等)传递到被hook函数中, 我们就无法实现hook
  * 函数的逻辑. 这就是需要该结构的原因！
- *
  * 说句题外话, 其实我觉得该结构是非必需的, O_NONBLOCK属性可通过未hook的fcntl函数获得, 超时时间采用全局设置也未尝不可.
  */
 struct rpchook_t {
@@ -81,7 +84,9 @@ struct rpchook_t {
   struct timeval write_timeout; // 该套接写超时时间
 };
 
-/* 获取线程id */
+/** 
+ * 获取线程id 
+ */
 static inline pid_t GetPid() {
   char** p = (char**) pthread_self();
   return p ? *(pid_t *) (p + 18) : getpid();
