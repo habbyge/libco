@@ -645,7 +645,7 @@ static short EpollEvent2Poll(uint32_t events) {
 // libco 使用 stCoRoutineEnv_t 结构来记录当前的调用链。当前线程的调用链通过线程专有变量 gCoEnvPerThread 来保存，
 // libco 内部会在第一次使用协程的时候初始化这个变量，我们看到 stCoRoutineEnv_t.pCallStack 的大小 128，这意味着，
 // 我们最多可以在协程嵌套 co_resume 新协程的深度为 128（协程里面运行新的协程）
-static __thread stCoRoutineEnv_t* gCoEnvPerThread = nullptr;
+static __thread stCoRoutineEnv_t* gCoEnvPerThread = nullptr; // 表示每条线程中的协程上下文
 
 void co_init_curr_thread_env() {
   gCoEnvPerThread = (stCoRoutineEnv_t*) calloc(1, sizeof(stCoRoutineEnv_t));
@@ -780,11 +780,15 @@ void FreeEpoll(stCoEpoll_t *ctx) {
 }
 
 /**
- * 获取当前协程
+ * 获取当前协程(正在运行着的co-routine)的上下文环境
  */ 
 stCoRoutine_t* GetCurrCo(stCoRoutineEnv_t* env) {
   return env->pCallStack[env->iCallStackSize - 1];
 }
+
+/**
+ * 获取当前thread中所有的co-routin
+ */
 stCoRoutine_t* GetCurrThreadCo() {
   stCoRoutineEnv_t* env = co_get_curr_thread_env();
   if (!env) {

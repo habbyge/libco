@@ -62,7 +62,8 @@ typedef long long ll64_t;
 // 时的解析，从而来达到阻塞时自动让出协程，并在 IO 事件发生时唤醒协程的目的。
 
 // LD_PRELOAD 作用：通过命令 export LD_PRELOAD="库文件路径"，设置要优先替换动态链接库，是个环境变量，用于
-// 动态库的加载，动态库加载的优先级最高，一般情况下，其加载顺序为LD_PRELOAD>LD_LIBRARY_PATH>/etc/ld.so.cache>/lib>/usr/lib。
+// 动态库的加载，动态库加载的优先级最高，一般情况下，其加载顺序为：
+// LD_PRELOAD > LD_LIBRARY_PATH > /etc/ld.so.cache > /lib>/usr/lib。
 
 // Linux用户层Hook非常简单。我们只要定义一个和被Hook的API相同名称、参数、返回值的函数即可。
 
@@ -85,7 +86,18 @@ struct rpchook_t {
 };
 
 /** 
- * 获取线程id 
+ * 获取线程id：
+ * gettid()获取的是内核中的真实线程id, 而pthread_self()获取的是posix线程id, 不一样的，
+ * 使用pthread库应该加上编译选项：-lpthread
+ * 
+ * 1、pthread_self()函数是线程库POSIX Phtread实现函数，它返回的线程ID是由线程库封装过然后返回的。既然是线程库函数，
+ * 那么该函数返回的ID也就只在进程中有意义，与操作系统的任务调度之间无法建立有效关联。
+ * 2、另外glibc的Pthreads实现实际上把pthread_t用作一个结构体指针(它的类型是unsigned long)，指向一块动态分配的内存，
+ * 而且这块内存是反复使用的。这就造成pthread_t的值很容易重复。Pthreads只保证同一进程内，同一时刻的各个线程的id不同；不
+ * 能保证同一进程先后多个线程具有不同的id。(当前一个线程结束其生命周期，进程又新创建了一个线程，那么该线程ID可能会使用消
+ * 亡线程的ID)。
+ * 
+ * gettid()函数就是Linux提供的函数，它返回的ID就是"线程"(轻量级进程)ID，相当于内核线程ID。
  */
 static inline pid_t GetPid() {
   char** p = (char**) pthread_self();
@@ -305,7 +317,7 @@ int socket(int domain, int type, int protocol) {
   rpchook_t* lp = alloc_by_fd(fd);
   lp->domain = domain;
 
-  // 设置套接字fd属性
+  // 设置套接字fd属性：该fd设置为 NONBLOCK(非阻塞)
   fcntl(fd, F_SETFL, g_sys_fcntl_func(fd, F_GETFL, 0));
 
   return fd;
@@ -722,7 +734,7 @@ int fcntl(int fildes, int cmd, ...) {
     }
     ret = g_sys_fcntl_func(fildes, cmd, flag);
     if (0 == ret && lp) {
-      lp->user_flag = param;
+      lp->user_flag = param; //TODO: 这里设置文件描述符(fd)为 NONBLACK
     }
   
     break;
@@ -1008,7 +1020,11 @@ struct hostent *co_gethostbyname(const char *name) {
 }
 #endif
 
-void co_enable_hook_sys() { // 这函数必须在这里,否则本文件会被忽略！！！
+/**
+ * 开启系统 api(glbc/libc) hook
+ * 这函数必须在这里,否则本文件会被忽略！！！
+ */ 
+void co_enable_hook_sys() {
   stCoRoutine_t* co = GetCurrThreadCo();
   if (co) {
     co->cEnableSysHook = 1;

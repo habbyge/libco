@@ -41,6 +41,7 @@ available.
 #endif
 
 using namespace std;
+
 struct task_t {
   stCoRoutine_t* co;
   int fd;
@@ -58,7 +59,7 @@ static int SetNonBlock(int iSock) {
   return ret;
 }
 
-static void *readwrite_routine(void *arg) {
+static void* readwrite_routine(void* arg) {
   co_enable_hook_sys();
 
   task_t* co = (task_t*) arg;
@@ -93,7 +94,7 @@ static void *readwrite_routine(void *arg) {
   return 0;
 }
 
-int co_accept(int fd, struct sockaddr *addr, socklen_t *len);
+int co_accept(int fd, struct sockaddr* addr, socklen_t* len);
 
 static void* accept_routine(void*) {
   co_enable_hook_sys();
@@ -113,7 +114,7 @@ static void* accept_routine(void*) {
     memset(&addr, 0, sizeof(addr));
     socklen_t len = sizeof(addr);
 
-    int fd = co_accept(g_listen_fd, (struct sockaddr*)&addr, &len);
+    int fd = co_accept(g_listen_fd, (struct sockaddr*) &addr, &len);
     if (fd < 0) {
       struct pollfd pf = {0};
       pf.fd = g_listen_fd;
@@ -134,7 +135,7 @@ static void* accept_routine(void*) {
   return 0;
 }
 
-static void SetAddr(const char* pszIP, const unsigned short shPort, struct sockaddr_in &addr) {
+static void SetAddr(const char* pszIP, const unsigned short shPort, struct sockaddr_in& addr) {
   bzero(&addr, sizeof(addr));
   addr.sin_family = AF_INET;
   addr.sin_port = htons(shPort);
@@ -161,7 +162,7 @@ static int CreateTcpSocket(const unsigned short shPort /* = 0 */,
       }
       struct sockaddr_in addr;
       SetAddr(pszIP, shPort, addr);
-      int ret = bind(fd, (struct sockaddr *)&addr, sizeof(addr));
+      int ret = bind(fd, (struct sockaddr*) &addr, sizeof(addr));
       if (ret != 0) {
         close(fd);
         return -1;
@@ -171,7 +172,7 @@ static int CreateTcpSocket(const unsigned short shPort /* = 0 */,
   return fd;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   if (argc < 5) {
     printf("Usage:\n"
            "example_echosvr [IP] [PORT] [TASK_COUNT] [PROCESS_COUNT]\n"
@@ -203,7 +204,7 @@ int main(int argc, char *argv[]) {
       break;
     }
     for (int i = 0; i < cnt; i++) {
-      task_t* task = (task_t *)calloc(1, sizeof(task_t));
+      task_t* task = (task_t*) calloc(1, sizeof(task_t));
       task->fd = -1;
 
       co_create(&(task->co), NULL, readwrite_routine, task);
@@ -217,7 +218,10 @@ int main(int argc, char *argv[]) {
 
     exit(0);
   }
-  if (!deamonize)
+
+  if (!deamonize) {
     wait(NULL);
+  }
+  
   return 0;
 }
