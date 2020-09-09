@@ -91,10 +91,10 @@ static int CreateTcpSocket(const unsigned short shPort = 0, const char* pszIP = 
   return fd;
 }
 
-static void* poll_routine(void *arg) {
+static void* poll_routine(void* arg) {
   co_enable_hook_sys();
 
-  std::vector<task_t> &v = *(std::vector<task_t>*)arg;
+  std::vector<task_t>& v = *(std::vector<task_t>*) arg;
   for (size_t i = 0; i < v.size(); i++) {
     int fd = CreateTcpSocket();
     SetNonBlock(fd);
@@ -103,7 +103,7 @@ static void* poll_routine(void *arg) {
     int ret = connect(fd, (struct sockaddr*) &v[i].addr, sizeof(v[i].addr));
     printf("co %p connect i %ld ret %d errno %d (%s)\n", co_self(), i, ret, errno, strerror(errno));
   }
-  struct pollfd* pf = (struct pollfd *)calloc(1, sizeof(struct pollfd) * v.size());
+  struct pollfd* pf = (struct pollfd*) calloc(1, sizeof(struct pollfd) * v.size());
 
   for (size_t i = 0; i < v.size(); i++) {
     pf[i].fd = v[i].fd;
@@ -146,7 +146,7 @@ static void* poll_routine(void *arg) {
   return 0;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   std::vector<task_t> v;
   for (int i = 1; i < argc; i += 2) {
     task_t task = {0};

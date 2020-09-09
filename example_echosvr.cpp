@@ -140,8 +140,9 @@ static void SetAddr(const char* pszIP, const unsigned short shPort, struct socka
   addr.sin_family = AF_INET;
   addr.sin_port = htons(shPort);
   int nIP = 0;
-  if (!pszIP || '\0' == *pszIP || 0 == strcmp(pszIP, "0") ||
-      0 == strcmp(pszIP, "0.0.0.0") || 0 == strcmp(pszIP, "*")) {
+
+  if (!pszIP || '\0' == *pszIP || 0 == strcmp(pszIP, "0") 
+      || 0 == strcmp(pszIP, "0.0.0.0") || 0 == strcmp(pszIP, "*")) {
     nIP = htonl(INADDR_ANY);
   } else {
     nIP = inet_addr(pszIP);
@@ -180,6 +181,7 @@ int main(int argc, char* argv[]) {
            "daemonize mode\n");
     return -1;
   }
+  
   const char* ip = argv[1];
   int port = atoi(argv[2]);
   int cnt = atoi(argv[3]);
@@ -222,6 +224,6 @@ int main(int argc, char* argv[]) {
   if (!deamonize) {
     wait(NULL);
   }
-  
+
   return 0;
 }

@@ -59,7 +59,8 @@ typedef long long ll64_t;
 // 简单来说，就是利用动态链接的原理来修改符号指向，从而达到『偷梁换柱』的编程效果。 我们简单地来看一下 libco 
 // 是如何使用动态链接 Hook 系统函数的。事实上，libco 最大的特点就是将系统中的关于网络操作的阻塞函数全部进行
 // 相应的非侵入式改造，例如对于 read，write 函数，libco 均定义了自己的版本，然后通过 LD_PRELOAD 进行运行
-// 时的解析，从而来达到阻塞时自动让出协程，并在 IO 事件发生时唤醒协程的目的。
+// 时(提前在搜索路径中定义一个同名、同形参、同返回值的目标函数)的解析，从而来达到阻塞时自动让出协程，并在 IO 
+// 事件发生时唤醒协程的目的。
 
 // LD_PRELOAD 作用：通过命令 export LD_PRELOAD="库文件路径"，设置要优先替换动态链接库，是个环境变量，用于
 // 动态库的加载，动态库加载的优先级最高，一般情况下，其加载顺序为：
@@ -101,18 +102,19 @@ struct rpchook_t {
  */
 static inline pid_t GetPid() {
   char** p = (char**) pthread_self();
-  return p ? *(pid_t *) (p + 18) : getpid();
+  return p ? *(pid_t*) (p + 18) : getpid();
 }
 
 /**
  * 套接字hook信息数组 - 存储(该线程内)所有协程中的套接字hook信息, 便于套接字hook信息在被hook的系统调用之间传递,
  * 部分被hook函数用这些信息来控制函数逻辑(详见下面被hook的系统调用).
- *
  * 理解这个数组是重点, 一部分被hook的系统调用初始化这些数组中的元素, 另一部分被hook的系统调用获取数组元素来控制函数逻辑.
  */
 static rpchook_t* g_rpchook_socket_fd[102400] = {0};
 
-/** 对每个被hook的系统调用声明一种函数指针类型 */
+/**
+ * 对每个被hook的系统调用声明一种函数指针类型 
+ */
 typedef int (*socket_pfn_t) (int domain, int type, int protocol);
 typedef int (*connect_pfn_t) (int socket, const struct sockaddr* address, socklen_t address_len);
 typedef int (*close_pfn_t) (int fd);
@@ -148,9 +150,11 @@ typedef res_state (*__res_state_pfn_t) ();
 typedef int (*__poll_pfn_t) (struct pollfd fds[], nfds_t nfds, int timeout);
 
 /**
- * dlsym()函数是Linux的系统调用，获取共享对象(.so)或可执行文件(.o)中符号的地址，
+ * dlsym()函数是Linux的系统调用，获取共享对象(.so)或可执行文件(.o)中符号的地址，例如：read()/write()/socket()等
+ * 
  * 将动态库(.so)中被hook的系统调用的地址(即函数指针)绑定到以g_sys_##name##__func命名的函数指针
- * 为什么要这么做呢? - 这样做的目的是在链接阶段让系统调用在动态库中找不到对应的实现, 而来链接到我们代码中的同名函数(即被hook的函数)
+ * 为什么要这么做呢? - 这样做的目的是在链接阶段(link)让系统调用在动态库中找不到对应的实现(使用LD_PRELOAD机制), 而来
+ * 链接到我们代码中的同名函数(即被hook的函数)。
  * 
  * 特殊句柄 RTLD_NEXT 允许从调用方链接映射列表中的下一个关联目标文件获取符号。
  * https://docs.oracle.com/cd/E19253-01/819-7050/chapter3-24/index.html
@@ -208,13 +212,13 @@ static pthread_rwlock_unlock_pfn_t g_sys_pthread_rwlock_unlock_func
 (pthread_rwlock_unlock_pfn_t)dlsym(RTLD_NEXT,"pthread_rwlock_unlock");
 */
 
-static inline unsigned long long get_tick_count() {
+static inline unsigned long long get_tick_count() { // 该函数未被使用
   uint32_t lo, hi;
   __asm__ __volatile__("rdtscp" : "=a"(lo), "=d"(hi));
   return ((unsigned long long) lo) | (((unsigned long long) hi) << 32);
 }
 
-struct rpchook_connagent_head_t {
+struct rpchook_connagent_head_t { // 未使用该结构
   unsigned char bVersion;
   struct in_addr iIP;
   unsigned short hPort;
@@ -222,7 +226,7 @@ struct rpchook_connagent_head_t {
   unsigned int iOssAttrID;
   unsigned char bIsRespNotExist;
   unsigned char sReserved[6];
-} __attribute__((packed));
+} __attribute__((packed)); // 按1字节压缩
 
 /** 
  * hook系统调用 - 将动态库中名为name的系统调用地址(即函数指针)绑定到以g_sys_##name##__func命名的函数指针 
@@ -231,7 +235,7 @@ struct rpchook_connagent_head_t {
   if (!g_sys_##name##_func) {                                                  \
     g_sys_##name##_func = (name##_pfn_t)dlsym(RTLD_NEXT, #name);               \
   }
-
+// TODO: --------------------------------------------- 这里继续 ---------------------------------------------
 /**
  * diff_ms - 计算以毫秒为单位的时间差
  * @param begin - (input) 开始时间
@@ -832,6 +836,7 @@ void co_set_env_list(const char* name[], size_t cnt) {
 
 int setenv(const char* n, const char* value, int overwrite) {
   HOOK_SYS_FUNC(setenv)
+
   if (co_is_enable_sys_hook() && g_co_sysenv.data) {
     stCoRoutine_t* self = co_self();
     if (self) {
@@ -840,7 +845,7 @@ int setenv(const char* n, const char* value, int overwrite) {
       }
       stCoSysEnvArr_t* arr = (stCoSysEnvArr_t*) (self->pvEnv);
 
-      stCoSysEnv_t name = {(char *)n, 0};
+      stCoSysEnv_t name = {(char*) n, 0};
 
       stCoSysEnv_t* e = (stCoSysEnv_t*) bsearch(&name, arr->data, arr->cnt, sizeof(name), co_sysenv_comp);
 

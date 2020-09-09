@@ -25,7 +25,7 @@ available.
 #include <string.h>
 #include <unistd.h>
 
-const char *CGI_ENV_HOOK_LIST[] = {
+const char* CGI_ENV_HOOK_LIST[] = {
     "CGINAME",
 };
 struct stRoutineArgs_t {
@@ -41,8 +41,7 @@ void SetAndGetEnv(int iRoutineID) {
   sprintf(sBuf, "cgi_routine_%d", iRoutineID);
   int ret = setenv("CGINAME", sBuf, 1);
   if (ret) {
-    printf("%s:%d set env err ret %d errno %d %s\n", __func__, __LINE__, ret,
-           errno, strerror(errno));
+    printf("%s:%d set env err ret %d errno %d %s\n", __func__, __LINE__, ret, errno, strerror(errno));
     return;
   }
   printf("routineid %d set env CGINAME %s\n", iRoutineID, sBuf);

@@ -50,13 +50,13 @@ void* Producer(void* args) {
 }
 void* Consumer(void* args) {
   co_enable_hook_sys();
-  stEnv_t *env = (stEnv_t *)args;
+  stEnv_t* env = (stEnv_t*) args;
   while (true) {
     if (env->task_queue.empty()) {
       co_cond_timedwait(env->cond, -1);
       continue;
     }
-    stTask_t *task = env->task_queue.front();
+    stTask_t* task = env->task_queue.front();
     env->task_queue.pop();
     printf("%s:%d consume task %d\n", __func__, __LINE__, task->id);
     free(task);

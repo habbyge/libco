@@ -58,11 +58,12 @@ struct stCoEpoll_t;
 struct stCoRoutineEnv_t {
   stCoRoutine_t* pCallStack[128];
   int iCallStackSize;
+
   stCoEpoll_t* pEpoll;
 
   // for copy stack log lastco and nextco
   stCoRoutine_t* pending_co;
-  stCoRoutine_t* occupy_co;
+  stCoRoutine_t* occupy_co; // occupy占据、占有
 };
 // int socket(int domain, int type, int protocol);
 void co_log_err(const char *fmt, ...) {}
@@ -271,26 +272,25 @@ static stStackMem_t *co_get_stackmem(stShareStack_t *share_stack) {
 // ----------------------------------------------------------------------------
 struct stTimeoutItemLink_t;
 struct stTimeoutItem_t;
+
 struct stCoEpoll_t {
   int iEpollFd;
   static const int _EPOLL_SIZE = 1024 * 10;
-
   struct stTimeout_t* pTimeout;
-
   struct stTimeoutItemLink_t* pstTimeoutList;
-
   struct stTimeoutItemLink_t* pstActiveList;
-
   co_epoll_res* result;
 };
-typedef void (*OnPreparePfn_t)(stTimeoutItem_t*, struct epoll_event& ev,
-                               stTimeoutItemLink_t* active);
-typedef void (*OnProcessPfn_t)(stTimeoutItem_t*);
+
+typedef void (*OnPreparePfn_t) (stTimeoutItem_t*, struct epoll_event& ev, stTimeoutItemLink_t* active);
+typedef void (*OnProcessPfn_t) (stTimeoutItem_t*);
+
 struct stTimeoutItem_t {
 
   enum {
     eMaxTimeout = 40 * 1000 // 40s
   };
+
   stTimeoutItem_t* pPrev;
   stTimeoutItem_t* pNext;
   stTimeoutItemLink_t* pLink;
@@ -303,10 +303,12 @@ struct stTimeoutItem_t {
   void* pArg; // routine
   bool bTimeout;
 };
+
 struct stTimeoutItemLink_t {
   stTimeoutItem_t* head;
   stTimeoutItem_t* tail;
 };
+
 struct stTimeout_t {
   stTimeoutItemLink_t* pItems;
   int iItemSize;

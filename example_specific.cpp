@@ -23,11 +23,14 @@ available.
 #include <stdio.h>
 #include <unistd.h>
 #include <vector>
+
 using namespace std;
+
 struct stRoutineArgs_t {
   stCoRoutine_t* co;
   int routine_id;
 };
+
 struct stRoutineSpecificData_t {
   int idx;
 };
@@ -52,5 +55,6 @@ int main() {
     co_resume(args[i].co);
   }
   co_eventloop(co_get_epoll_ct(), NULL, NULL);
+  
   return 0;
 }
