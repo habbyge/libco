@@ -54,19 +54,33 @@ using namespace std;
 stCoRoutine_t* GetCurrCo(stCoRoutineEnv_t *env);
 struct stCoEpoll_t;
 
+/**
+ * 协程环境类型 - 每个线程有且仅有一个该类型的变量 【相当于当前线程的调度器 marked by habbyge】
+ *
+ * 该结构的作用是什么呢？ - 我们知道, 非对称协程允许嵌套创建子协程, 为了记录这种嵌套创建的协程, 以便子协程退出
+ * 时正确恢复到挂起点(挂起点位于父协程中), 我们就需要记录这种嵌套调用过程; 另外, 协程中的套接字向内核注册了事件,
+ * 我们必须保存套接字和协程的对应关系, 以便该线程的eventloop中检测到套接字上事件发生时, 能够恢复该套接字对应的
+ * 协程来处理事件.
+ */
 // 代表一个thread中的所有协程
 struct stCoRoutineEnv_t {
-  stCoRoutine_t* pCallStack[128];
-  int iCallStackSize;
-
-  stCoEpoll_t* pEpoll;
+  stCoRoutine_t* pCallStack[128]; // 该线程内允许嵌套创建128个协程(即协程1内创建协程2, 协程2内创建协程3... 
+                                  // 协程127内创建协程128. 该结构虽然是数组, 但将其作为栈来使用, 满足后进先出的特点)
+  int iCallStackSize; // 该线程内嵌套创建的协程数量, 即pCallStack数组中元素的数量
+  stCoEpoll_t* pEpoll; // 该线程内的epoll实例(套接字通过该结构内的epoll句柄向内核注册事件), 也用于该线程的事件循环eventloop中
 
   // for copy stack log lastco and nextco
   stCoRoutine_t* pending_co;
   stCoRoutine_t* occupy_co; // occupy占据、占有
 };
+
 // int socket(int domain, int type, int protocol);
-void co_log_err(const char *fmt, ...) {}
+
+/**
+ * co_log_err - 协程日志输出
+ */
+void co_log_err(const char* fmt, ...) {
+}
 
 #if defined(__LIBCO_RDTSCP__)
 static unsigned long long counter(void) {
@@ -142,8 +156,8 @@ static pid_t GetPid() {
 }
 */
 
-template <class T, class TLink> void RemoveFromLink(T *ap) {
-  TLink *lst = ap->pLink;
+template <class T, class TLink> void RemoveFromLink(T* ap) {
+  TLink* lst = ap->pLink;
   if (!lst)
     return;
   assert(lst->head && lst->tail);
@@ -178,7 +192,7 @@ void inline AddTail(TLink* apLink, TNode* ap) {
     return;
   }
   if (apLink->tail) {
-    apLink->tail->pNext = (TNode *)ap;
+    apLink->tail->pNext = (TNode*) ap;
     ap->pNext = NULL;
     ap->pPrev = apLink->tail;
     apLink->tail = ap;
@@ -193,7 +207,7 @@ void inline PopHead(TLink* apLink) {
   if (!apLink->head) {
     return;
   }
-  TNode *lp = apLink->head;
+  TNode* lp = apLink->head;
   if (apLink->head == apLink->tail) {
     apLink->head = apLink->tail = NULL;
   } else {
@@ -209,19 +223,19 @@ void inline PopHead(TLink* apLink) {
 }
 
 template <class TNode, class TLink>
-void inline Join(TLink *apLink, TLink *apOther) {
+void inline Join(TLink* apLink, TLink* apOther) {
   // printf("apOther %p\n",apOther);
   if (!apOther->head) {
     return;
   }
-  TNode *lp = apOther->head;
+  TNode* lp = apOther->head;
   while (lp) {
     lp->pLink = apLink;
     lp = lp->pNext;
   }
   lp = apOther->head;
   if (apLink->tail) {
-    apLink->tail->pNext = (TNode *)lp;
+    apLink->tail->pNext = (TNode*) lp;
     lp->pPrev = apLink->tail;
     apLink->tail = apOther->tail;
   } else {
@@ -233,25 +247,23 @@ void inline Join(TLink *apLink, TLink *apOther) {
 }
 
 /////////////////for copy stack //////////////////////////
-stStackMem_t *co_alloc_stackmem(unsigned int stack_size) {
-  stStackMem_t *stack_mem = (stStackMem_t *)malloc(sizeof(stStackMem_t));
+stStackMem_t* co_alloc_stackmem(unsigned int stack_size) {
+  stStackMem_t* stack_mem = (stStackMem_t*) malloc(sizeof(stStackMem_t));
   stack_mem->occupy_co = NULL;
   stack_mem->stack_size = stack_size;
-  stack_mem->stack_buffer = (char *)malloc(stack_size);
+  stack_mem->stack_buffer = (char*) malloc(stack_size);
   stack_mem->stack_bp = stack_mem->stack_buffer + stack_size;
   return stack_mem;
 }
 
-stShareStack_t *co_alloc_sharestack(int count, int stack_size) {
-  stShareStack_t *share_stack =
-      (stShareStack_t *)malloc(sizeof(stShareStack_t));
+stShareStack_t* co_alloc_sharestack(int count, int stack_size) {
+  stShareStack_t* share_stack = (stShareStack_t*) malloc(sizeof(stShareStack_t));
   share_stack->alloc_idx = 0;
   share_stack->stack_size = stack_size;
 
   // alloc stack array
   share_stack->count = count;
-  stStackMem_t **stack_array =
-      (stStackMem_t **)calloc(count, sizeof(stStackMem_t *));
+  stStackMem_t** stack_array = (stStackMem_t**) calloc(count, sizeof(stStackMem_t*));
   for (int i = 0; i < count; i++) {
     stack_array[i] = co_alloc_stackmem(stack_size);
   }
@@ -259,7 +271,7 @@ stShareStack_t *co_alloc_sharestack(int count, int stack_size) {
   return share_stack;
 }
 
-static stStackMem_t *co_get_stackmem(stShareStack_t *share_stack) {
+static stStackMem_t* co_get_stackmem(stShareStack_t* share_stack) {
   if (!share_stack) {
     return NULL;
   }
@@ -273,8 +285,12 @@ static stStackMem_t *co_get_stackmem(stShareStack_t *share_stack) {
 struct stTimeoutItemLink_t;
 struct stTimeoutItem_t;
 
+/**
+ * 线程epoll实例 - 该结构存在于stCoRoutineEnv_t结构中
+ * 同一线程内所有的套接字都通过iEpollFd文件描述符向内核注册事件
+ */
 struct stCoEpoll_t {
-  int iEpollFd;
+  int iEpollFd; // 由epoll_create函数创建的epoll句柄
   static const int _EPOLL_SIZE = 1024 * 10;
   struct stTimeout_t* pTimeout;
   struct stTimeoutItemLink_t* pstTimeoutList;
@@ -285,6 +301,9 @@ struct stCoEpoll_t {
 typedef void (*OnPreparePfn_t) (stTimeoutItem_t*, struct epoll_event& ev, stTimeoutItemLink_t* active);
 typedef void (*OnProcessPfn_t) (stTimeoutItem_t*);
 
+/**
+ * 详见stPoll_t结构说明 
+ */
 struct stTimeoutItem_t {
 
   enum {
@@ -327,10 +346,12 @@ stTimeout_t* AllocTimeout(int iSize) {
 
   return lp;
 }
+
 void FreeTimeout(stTimeout_t* apTimeout) {
   free(apTimeout->pItems);
   free(apTimeout);
 }
+
 int AddTimeout(stTimeout_t* apTimeout, stTimeoutItem_t* apItem, unsigned long long allNow) {
   if (apTimeout->ullStart == 0) {
     apTimeout->ullStart = allNow;
@@ -362,6 +383,7 @@ int AddTimeout(stTimeout_t* apTimeout, stTimeoutItem_t* apItem, unsigned long lo
 
   return 0;
 }
+
 inline void TakeAllTimeout(stTimeout_t* apTimeout, unsigned long long allNow, stTimeoutItemLink_t* apResult) {
   if (apTimeout->ullStart == 0) {
     apTimeout->ullStart = allNow;
@@ -385,13 +407,19 @@ inline void TakeAllTimeout(stTimeout_t* apTimeout, unsigned long long allNow, st
   apTimeout->ullStart = allNow;
   apTimeout->llStartIdx += cnt - 1;
 }
+
+/**
+ * CoRoutineFunc - 所有新协程第一次被调度执行时的入口函数, 新协程在该入口函数中被执行
+ * @param co -        (input) 第一次被调度的协程
+ * @param 未命名指针 - (input) 用于兼容函数类型
+ */
 static int CoRoutineFunc(stCoRoutine_t* co, void*) {
   if (co->pfn) {
     co->pfn(co->arg);
   }
   co->cEnd = 1;
 
-  stCoRoutineEnv_t* env = co->env;
+  stCoRoutineEnv_t* env = co->env; // 获取当前线程的调度器
   
   co_yield_env(env);
 
@@ -449,15 +477,15 @@ struct stCoRoutine_t* co_create_env(stCoRoutineEnv_t* env,
   return lp;
 }
 
-int co_create(stCoRoutine_t **ppco, const stCoRoutineAttr_t *attr, pfn_co_routine_t pfn, void *arg) {
+int co_create(stCoRoutine_t** ppco, const stCoRoutineAttr_t* attr, pfn_co_routine_t pfn, void* arg) {
   if (!co_get_curr_thread_env()) {
     co_init_curr_thread_env();
   }
-  stCoRoutine_t *co = co_create_env(co_get_curr_thread_env(), attr, pfn, arg);
+  stCoRoutine_t* co = co_create_env(co_get_curr_thread_env(), attr, pfn, arg);
   *ppco = co;
   return 0;
 }
-void co_free(stCoRoutine_t *co) {
+void co_free(stCoRoutine_t* co) {
   if (!co->cIsShareStack) {
     free(co->stack_mem->stack_buffer);
     free(co->stack_mem);
@@ -474,15 +502,17 @@ void co_free(stCoRoutine_t *co) {
 
   free(co);
 }
-void co_release(stCoRoutine_t *co) { co_free(co); }
+void co_release(stCoRoutine_t* co) { 
+  co_free(co); 
+}
 
-void co_swap(stCoRoutine_t *curr, stCoRoutine_t *pending_co);
+void co_swap(stCoRoutine_t* curr, stCoRoutine_t* pending_co);
 
-void co_resume(stCoRoutine_t *co) {
-  stCoRoutineEnv_t *env = co->env;
-  stCoRoutine_t *lpCurrRoutine = env->pCallStack[env->iCallStackSize - 1];
+void co_resume(stCoRoutine_t* co) {
+  stCoRoutineEnv_t* env = co->env;
+  stCoRoutine_t* lpCurrRoutine = env->pCallStack[env->iCallStackSize - 1];
   if (!co->cStart) {
-    coctx_make(&co->ctx, (coctx_pfn_t)CoRoutineFunc, co, 0);
+    coctx_make(&co->ctx, (coctx_pfn_t) CoRoutineFunc, co, 0);
     co->cStart = 1;
   }
   env->pCallStack[env->iCallStackSize++] = co;
@@ -491,7 +521,7 @@ void co_resume(stCoRoutine_t *co) {
 
 // walkerdu 2018-01-14
 // 用于reset超时无法重复使用的协程
-void co_reset(stCoRoutine_t *co) {
+void co_reset(stCoRoutine_t* co) {
   if (!co->cStart || co->cIsMain)
     return;
 
@@ -511,9 +541,8 @@ void co_reset(stCoRoutine_t *co) {
 }
 
 void co_yield_env(stCoRoutineEnv_t* env) {
-
-  stCoRoutine_t *last = env->pCallStack[env->iCallStackSize - 2];
-  stCoRoutine_t *curr = env->pCallStack[env->iCallStackSize - 1];
+  stCoRoutine_t* last = env->pCallStack[env->iCallStackSize - 2];
+  stCoRoutine_t* curr = env->pCallStack[env->iCallStackSize - 1];
 
   env->iCallStackSize--;
 
@@ -521,23 +550,28 @@ void co_yield_env(stCoRoutineEnv_t* env) {
 }
 
 void co_yield_ct() { co_yield_env(co_get_curr_thread_env()); }
-void co_yield(stCoRoutine_t *co) { co_yield_env(co->env); }
+void co_yield(stCoRoutine_t* co) {
+  co_yield_env(co->env); 
+}
 
 void save_stack_buffer(stCoRoutine_t *occupy_co) {
   /// copy out
-  stStackMem_t *stack_mem = occupy_co->stack_mem;
+  stStackMem_t* stack_mem = occupy_co->stack_mem;
   int len = stack_mem->stack_bp - occupy_co->stack_sp;
 
   if (occupy_co->save_buffer) {
     free(occupy_co->save_buffer), occupy_co->save_buffer = NULL;
   }
 
-  occupy_co->save_buffer = (char *)malloc(len); // malloc buf;
+  occupy_co->save_buffer = (char*) malloc(len); // malloc buf;
   occupy_co->save_size = len;
 
   memcpy(occupy_co->save_buffer, occupy_co->stack_sp, len);
 }
 
+/**
+ * 切换协程上下文
+ */
 void co_swap(stCoRoutine_t* curr, stCoRoutine_t* pending_co) {
   stCoRoutineEnv_t* env = co_get_curr_thread_env();
 
@@ -551,7 +585,7 @@ void co_swap(stCoRoutine_t* curr, stCoRoutine_t* pending_co) {
   } else {
     env->pending_co = pending_co;
     // get last occupy co on the same stack mem
-    stCoRoutine_t *occupy_co = pending_co->stack_mem->occupy_co;
+    stCoRoutine_t* occupy_co = pending_co->stack_mem->occupy_co;
     // set pending co to occupy thest stack mem;
     pending_co->stack_mem->occupy_co = pending_co;
 
@@ -561,16 +595,15 @@ void co_swap(stCoRoutine_t* curr, stCoRoutine_t* pending_co) {
     }
   }
 
-  // swap context
+  // FIXME: swap context 切换协程上下文
   coctx_swap(&(curr->ctx), &(pending_co->ctx));
 
   // stack buffer may be overwrite, so get again;
-  stCoRoutineEnv_t *curr_env = co_get_curr_thread_env();
-  stCoRoutine_t *update_occupy_co = curr_env->occupy_co;
-  stCoRoutine_t *update_pending_co = curr_env->pending_co;
+  stCoRoutineEnv_t* curr_env = co_get_curr_thread_env();
+  stCoRoutine_t* update_occupy_co = curr_env->occupy_co;
+  stCoRoutine_t* update_pending_co = curr_env->pending_co;
 
-  if (update_occupy_co && update_pending_co &&
-      update_occupy_co != update_pending_co) {
+  if (update_occupy_co && update_pending_co && update_occupy_co != update_pending_co) {
     // resume stack buffer
     if (update_pending_co->save_buffer && update_pending_co->save_size > 0) {
       memcpy(update_pending_co->stack_sp, update_pending_co->save_buffer, update_pending_co->save_size);
@@ -582,10 +615,10 @@ void co_swap(stCoRoutine_t* curr, stCoRoutine_t* pending_co) {
 // { fd,events,revents }
 struct stPollItem_t;
 struct stPoll_t : public stTimeoutItem_t {
-  struct pollfd *fds;
+  struct pollfd* fds;
   nfds_t nfds; // typedef unsigned long int nfds_t;
 
-  stPollItem_t *pPollItems;
+  stPollItem_t* pPollItems;
 
   int iAllEventDetach;
 

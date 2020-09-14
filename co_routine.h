@@ -46,7 +46,7 @@ typedef void* (*pfn_co_routine_t)(void*);
 
 // 2.co_routine
 
-int co_create(stCoRoutine_t** co, const stCoRoutineAttr_t* attr, void* (*routine)(void*), void* arg);
+int co_create(stCoRoutine_t** co, const stCoRoutineAttr_t* attr, void* (*routine) (void*), void* arg);
 void co_resume(stCoRoutine_t* co);
 void co_yield(stCoRoutine_t* co);
 void co_yield_ct(); // ct = current thread
@@ -77,17 +77,17 @@ bool co_is_enable_sys_hook();
 struct stCoCond_t;
 
 stCoCond_t* co_cond_alloc();
-int co_cond_free(stCoCond_t *cc);
+int co_cond_free(stCoCond_t* cc);
 
-int co_cond_signal(stCoCond_t *);
-int co_cond_broadcast(stCoCond_t *);
-int co_cond_timedwait(stCoCond_t *, int timeout_ms);
+int co_cond_signal(stCoCond_t*);
+int co_cond_broadcast(stCoCond_t*);
+int co_cond_timedwait(stCoCond_t*, int timeout_ms);
 
 // 7.share stack
 stShareStack_t* co_alloc_sharestack(int iCount, int iStackSize);
 
 // 8.init envlist for hook get/set env
-void co_set_env_list(const char *name[], size_t cnt);
+void co_set_env_list(const char* name[], size_t cnt);
 
 void co_log_err(const char *fmt, ...);
 #endif

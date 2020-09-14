@@ -67,11 +67,11 @@ struct stCoRoutine_t { // 协程实例
 
 // 1.env
 void co_init_curr_thread_env();
-stCoRoutineEnv_t *co_get_curr_thread_env();
+stCoRoutineEnv_t* co_get_curr_thread_env();
 
 // 2.coroutine
-void co_free(stCoRoutine_t *co);
-void co_yield_env(stCoRoutineEnv_t *env);
+void co_free(stCoRoutine_t* co);
+void co_yield_env(stCoRoutineEnv_t* env);
 
 // 3.func
 
@@ -85,11 +85,11 @@ void FreeTimeout(stTimeout_t* apTimeout);
 int AddTimeout(stTimeout_t* apTimeout, stTimeoutItem_t* apItem, uint64_t allNow);
 
 struct stCoEpoll_t;
-stCoEpoll_t *AllocEpoll();
-void FreeEpoll(stCoEpoll_t *ctx);
+stCoEpoll_t* AllocEpoll();
+void FreeEpoll(stCoEpoll_t* ctx);
 
-stCoRoutine_t *GetCurrThreadCo();
-void SetEpoll(stCoRoutineEnv_t *env, stCoEpoll_t *ev);
+stCoRoutine_t* GetCurrThreadCo();
+void SetEpoll(stCoRoutineEnv_t* env, stCoEpoll_t* ev);
 
 typedef void (*pfnCoRoutineFunc_t)();
 

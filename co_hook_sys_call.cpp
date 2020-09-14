@@ -87,7 +87,7 @@ struct rpchook_t {
 };
 
 /** 
- * 获取线程id：
+ * GetPid - 获取当前线程id
  * gettid()获取的是内核中的真实线程id, 而pthread_self()获取的是posix线程id, 不一样的，
  * 使用pthread库应该加上编译选项：-lpthread
  * 
@@ -144,8 +144,8 @@ typedef int (*pthread_setspecific_pfn_t) (pthread_key_t key, const void* value);
 
 typedef int (*setenv_pfn_t) (const char* name, const char* value, int overwrite);
 typedef int (*unsetenv_pfn_t) (const char* name);
-typedef char *(*getenv_pfn_t) (const char* name);
-typedef hostent *(*gethostbyname_pfn_t) (const char *name);
+typedef char* (*getenv_pfn_t) (const char* name);
+typedef hostent* (*gethostbyname_pfn_t) (const char *name);
 typedef res_state (*__res_state_pfn_t) ();
 typedef int (*__poll_pfn_t) (struct pollfd fds[], nfds_t nfds, int timeout);
 
@@ -235,7 +235,7 @@ struct rpchook_connagent_head_t { // 未使用该结构
   if (!g_sys_##name##_func) {                                                  \
     g_sys_##name##_func = (name##_pfn_t)dlsym(RTLD_NEXT, #name);               \
   }
-// TODO: --------------------------------------------- 这里继续 ---------------------------------------------
+
 /**
  * diff_ms - 计算以毫秒为单位的时间差
  * @param begin - (input) 开始时间
@@ -250,9 +250,9 @@ static inline ll64_t diff_ms(struct timeval& begin, struct timeval& end) {
 }
 
 /**
- * get_by_fd - 在套接字hook信息数组(g_rpchook_socket_fd)中获取套接字fd对应的rpchook_t类型变量的指针
+ * get_by_fd - 在套接字hook信息数组(g_rpchook_socket_fd)中获取套接字fd对应的 rpchook_t 类型变量的指针
  * @param fd - (input) 套接字文件描述符
- * @return 成功返回rpchook_t类型变量的指针, 失败返回NULL
+ * @return 成功返回 rpchook_t 类型变量的指针, 失败返回NULL
  */
 static inline rpchook_t* get_by_fd(int fd) {
   if (fd > -1 && fd < (int) sizeof(g_rpchook_socket_fd) / (int) sizeof(g_rpchook_socket_fd[0])) {
@@ -262,7 +262,7 @@ static inline rpchook_t* get_by_fd(int fd) {
 }
 
 /**
- * alloc_by_fd - 为套接字fd分配对应的rpchook_t类型类型的存储空间, 并将存储空间的地址加入到套接字hook信息数组(g_rpchook_socket_fd)中
+ * alloc_by_fd - 为套接字fd分配对应的 rpchook_t 类型类型的存储空间, 并将存储空间的地址加入到套接字hook信息数组(g_rpchook_socket_fd)中
  * @param fd - (input) 套接字文件描述符
  * @return 成功返回rpchook_t类型变量的指针, 失败返回NULL
  */
@@ -295,12 +295,12 @@ static inline void free_by_fd(int fd) {
 
 /**
  * 系统函数hook原理(以socket()为例，其他类似)：
- * 该函数必须与libc.so中的的socket函数完全一致(名称、参数列表、返回值类型)，这样才会在业务中调用socket()时，执行这里，
- * 因为这时dlsym默认句柄(handler)是RTLD_DEFAULT，按照路径会首先索引到当前.so动态库中来执行socket()，在该函数中，我
- * 们通过dlsym(RTLD_NEXT，"socket")来寻找下一个(即libc.so中的)socket函数符号，来获取原始的函数地址，进行执行。
+ * 该函数必须与libc.so(glibc.so)中的的socket函数完全一致(名称、参数列表、返回值类型)，这样才会在业务中调用socket()时，
+ * 执行这里，因为这时dlsym默认句柄(handler)是RTLD_DEFAULT，按照路径会首先索引到当前.so动态库中来执行socket()，在该函
+ * 数中，我们通过dlsym(RTLD_NEXT，"socket")来寻找下一个(即libc.so中的)socket函数符号，来获取原始的函数地址，进行执行。
  * 
- * socket - 被hook后的socket函数, 主要是为套接字fd分配对应的rpchook_t类型的内存空间, 并往
- * g_rpchook_socket_fd中添加该内存空间的地址(指针指向的变量未全部初始化) 
+ * socket - 被hook后的socket函数, 主要是为套接字fd分配对应的 rpchook_t 类型的内存空间, 并往 g_rpchook_socket_fd 
+ * 中添加该内存空间的地址(指针指向的变量未全部初始化) 
  */
 int socket(int domain, int type, int protocol) {
   // 重命名动态库中的socket系统调用
@@ -317,7 +317,7 @@ int socket(int domain, int type, int protocol) {
     return fd;
   }
 
-  // 为fd分配rpchook_t类型的内存空间, 其中存储套接字hook信息, 并将其加入套接字hook信息数组g_rpchook_socket_fd中
+  // 为fd分配 rpchook_t 类型的内存空间, 其中存储套接字hook信息, 并将其加入套接字hook信息数组 g_rpchook_socket_fd 中
   rpchook_t* lp = alloc_by_fd(fd);
   lp->domain = domain;
 
@@ -340,8 +340,7 @@ int co_accept(int fd, struct sockaddr* addr, socklen_t* len) {
 }
 
 /** 
- * connect - 被hook后的connect函数, 主要是初始化(g_rpchook_socket_fd中)
- * 套接字fd对应的rpchook_t类型变量的dest成员
+ * connect - 被hook后的connect函数, 主要是初始化(g_rpchook_socket_fd中)套接字fd对应的rpchook_t类型变量的dest成员
  */
 int connect(int fd, const struct sockaddr* address, socklen_t address_len) {
   HOOK_SYS_FUNC(connect);
@@ -359,7 +358,7 @@ int connect(int fd, const struct sockaddr* address, socklen_t address_len) {
     return ret;
 
   if (sizeof(lp->dest) >= address_len) {
-    memcpy(&(lp->dest), address, (int) address_len);
+    memcpy(&(lp->dest), address, (int) address_len); // /tmp/connagent_unix_domain_socket
   }
   if (O_NONBLOCK & lp->user_flag) {
     return ret; // 非阻塞状态的连接，这里返回了
@@ -432,61 +431,74 @@ ssize_t read(int fd, void* buf, size_t nbyte) {
   if (!co_is_enable_sys_hook()) {
     return g_sys_read_func(fd, buf, nbyte);
   }
+
+  // 协程hook系统调用，根据套接字是否为非阻塞(NON_BLOCK)选择不同的处理方式
   rpchook_t* lp = get_by_fd(fd);
 
-  if (!lp || (O_NONBLOCK & lp->user_flag)) {
+  if (!lp || (O_NONBLOCK & lp->user_flag)) { // 非阻塞, 直接调用系统调用
     ssize_t ret = g_sys_read_func(fd, buf, nbyte);
     return ret;
   }
   int timeout = (lp->read_timeout.tv_sec * 1000) + (lp->read_timeout.tv_usec / 1000);
 
+	// 阻塞, 向内核注册套接字fd的事件
+	// poll如果未hook，则直接调用poll系统调用;
+	// poll如果被hook，则调用co_poll向内核注册, co_poll中会切换协程, 协程被恢复时将会从co_poll中的挂起点继续运行
   struct pollfd pf = {0};
   pf.fd = fd;
   pf.events = (POLLIN | POLLERR | POLLHUP);
-
   int pollret = poll(&pf, 1, timeout);
 
-  ssize_t readret = g_sys_read_func(fd, (char*) buf, nbyte);
+  ssize_t readret = g_sys_read_func(fd, (char*) buf, nbyte); // 调用系统原始read()
 
   if (readret < 0) {
-    co_log_err("CO_ERR: read fd %d ret %ld errno %d poll ret %d timeout %d", 
+    co_log_err("CO_ERR: read fd %d ret %ld errno %d poll ret %d timeout %d",  
         fd, readret, errno, pollret, timeout);
   }
 
   return readret;
 }
+
+/**
+ * write - 被hook后的write函数, 主要是向内核注册套接字fd上的事件
+ */
 ssize_t write(int fd, const void* buf, size_t nbyte) {
   HOOK_SYS_FUNC(write);
 
+  // 协程禁止hook系统调用, 则直接调用系统调用
   if (!co_is_enable_sys_hook()) {
     return g_sys_write_func(fd, buf, nbyte);
   }
+
   rpchook_t* lp = get_by_fd(fd);
 
-  if (!lp || (O_NONBLOCK & lp->user_flag)) {
+  // 协程hook系统调用, 根据套接字是否为非阻塞选择不同的处理方式
+  if (!lp || (O_NONBLOCK & lp->user_flag)) { // 非阻塞, 直接调用系统调用
     ssize_t ret = g_sys_write_func(fd, buf, nbyte);
     return ret;
   }
+
+  // 阻塞, 向内核注册套接字fd的事件
+	// poll如果未hook,则直接调用poll系统调用;
+	// poll如果被hook,则调用co_poll向内核注册, co_poll中会切换协程, 协程被恢复时将会从co_poll中的挂起点继续运行
   size_t wrotelen = 0;
   int timeout = (lp->write_timeout.tv_sec * 1000) + (lp->write_timeout.tv_usec / 1000);
-
-  ssize_t writeret = g_sys_write_func(fd, (const char *)buf + wrotelen, nbyte - wrotelen);
-
+  ssize_t writeret = g_sys_write_func(fd, (const char*) buf + wrotelen, nbyte - wrotelen);
   if (writeret == 0) {
     return writeret;
   }
-
   if (writeret > 0) {
     wrotelen += writeret;
   }
 
   while (wrotelen < nbyte) {
+    // buf中的数据未全部写到fd上, 则向内核注册套接字fd的事件
     struct pollfd pf = {0};
     pf.fd = fd;
     pf.events = (POLLOUT | POLLERR | POLLHUP);
     poll(&pf, 1, timeout);
 
-    writeret = g_sys_write_func(fd, (const char *)buf + wrotelen, nbyte - wrotelen);
+    writeret = g_sys_write_func(fd, (const char*) buf + wrotelen, nbyte - wrotelen);
 
     if (writeret <= 0) {
       break;
@@ -499,16 +511,20 @@ ssize_t write(int fd, const void* buf, size_t nbyte) {
   return wrotelen;
 }
 
-ssize_t sendto(int socket, const void *message, size_t length, int flags,
-               const struct sockaddr *dest_addr, socklen_t dest_len) {
-  /*
-          1.no enable sys call ? sys
-          2.( !lp || lp is non block ) ? sys
-          3.try
-          4.wait
-          5.try
-  */
+/**
+ * sendto - 被hook后的sendto函数, 主要是向内核注册套接字fd上的事件
+ */
+ssize_t sendto(int socket, const void* message, size_t length, int flags,
+               const struct sockaddr* dest_addr, socklen_t dest_len) {
+  /**
+   * 1.no enable sys call ? sys
+   * 2.( !lp || lp is non block ) ? sys
+   * 3.try
+   * 4.wait
+   * 5.try
+   */
   HOOK_SYS_FUNC(sendto);
+
   if (!co_is_enable_sys_hook()) {
     return g_sys_sendto_func(socket, message, length, flags, dest_addr, dest_len);
   }
@@ -525,15 +541,18 @@ ssize_t sendto(int socket, const void *message, size_t length, int flags,
     struct pollfd pf = {0};
     pf.fd = socket;
     pf.events = (POLLOUT | POLLERR | POLLHUP);
-    poll(&pf, 1, timeout);
+    poll(&pf, 1, timeout); // TODO: 这里继续......
 
     ret = g_sys_sendto_func(socket, message, length, flags, dest_addr, dest_len);
   }
   return ret;
 }
 
-ssize_t recvfrom(int socket, void *buffer, size_t length, int flags,
-                 struct sockaddr *address, socklen_t *address_len) {
+/**
+ * recvfrom - 被hook后的recvfrom函数, 主要是向内核注册套接字fd上的事件
+ */
+ssize_t recvfrom(int socket, void* buffer, size_t length, int flags,
+                 struct sockaddr* address, socklen_t* address_len) {
 
   HOOK_SYS_FUNC(recvfrom);
   if (!co_is_enable_sys_hook()) {
@@ -556,13 +575,16 @@ ssize_t recvfrom(int socket, void *buffer, size_t length, int flags,
   return ret;
 }
 
-ssize_t send(int socket, const void *buffer, size_t length, int flags) {
+/**
+ * send - 被hook后的send函数, 主要是向内核注册套接字fd上的事件
+ */
+ssize_t send(int socket, const void* buffer, size_t length, int flags) {
   HOOK_SYS_FUNC(send);
 
   if (!co_is_enable_sys_hook()) {
     return g_sys_send_func(socket, buffer, length, flags);
   }
-  rpchook_t *lp = get_by_fd(socket);
+  rpchook_t* lp = get_by_fd(socket);
 
   if (!lp || (O_NONBLOCK & lp->user_flag)) {
     return g_sys_send_func(socket, buffer, length, flags);
@@ -597,7 +619,10 @@ ssize_t send(int socket, const void *buffer, size_t length, int flags) {
   return wrotelen;
 }
 
-ssize_t recv(int socket, void *buffer, size_t length, int flags) {
+/**
+ * recv - 被hook后的recv函数, 主要是向内核注册套接字fd上的事件
+ */
+ssize_t recv(int socket, void* buffer, size_t length, int flags) {
   HOOK_SYS_FUNC(recv);
 
   if (!co_is_enable_sys_hook()) {
@@ -672,6 +697,10 @@ int poll(struct pollfd fds[], nfds_t nfds, int timeout) {
   return ret;
 }
 
+/**
+ * setsockopt - 被hook后的setsockopt函数, 主要是初始化(g_rpchook_socket_fd中)套
+ * 接字fd对应的rpchook_t类型变量的read_timeout和write_timeout成员
+ */
 int setsockopt(int fd, int level, int option_name, const void* option_value, socklen_t option_len) {
   HOOK_SYS_FUNC(setsockopt);
 
@@ -691,6 +720,9 @@ int setsockopt(int fd, int level, int option_name, const void* option_value, soc
   return g_sys_setsockopt_func(fd, level, option_name, option_value, option_len);
 }
 
+/** 
+ * fcntl - 被hook后的fcntl函数, 主要是初始化(g_rpchook_socket_fd中)套接字fd对应的rpchook_t类型变量的user_flag成员
+ */
 int fcntl(int fildes, int cmd, ...) {
   HOOK_SYS_FUNC(fcntl);
 
@@ -736,9 +768,9 @@ int fcntl(int fildes, int cmd, ...) {
     if (co_is_enable_sys_hook() && lp) {
       flag |= O_NONBLOCK; // 非阻塞
     }
-    ret = g_sys_fcntl_func(fildes, cmd, flag);
+    ret = g_sys_fcntl_func(fildes, cmd, flag); // 这里设置文件描述符(fd)为 NONBLOCK
     if (0 == ret && lp) {
-      lp->user_flag = param; //TODO: 这里设置文件描述符(fd)为 NONBLACK
+      lp->user_flag = param; // 这里保持旧的用户参数
     }
   
     break;
@@ -791,7 +823,7 @@ struct stCoSysEnvArr_t {
 };
 
 static stCoSysEnvArr_t* dup_co_sysenv_arr(stCoSysEnvArr_t* arr) {
-  stCoSysEnvArr_t *lp = (stCoSysEnvArr_t*) calloc(sizeof(stCoSysEnvArr_t), 1);
+  stCoSysEnvArr_t* lp = (stCoSysEnvArr_t*) calloc(sizeof(stCoSysEnvArr_t), 1);
   if (arr->cnt) {
     lp->data = (stCoSysEnv_t*) calloc(sizeof(stCoSysEnv_t) * arr->cnt, 1);
     lp->cnt = arr->cnt;
@@ -810,7 +842,7 @@ void co_set_env_list(const char* name[], size_t cnt) {
   if (g_co_sysenv.data) {
     return;
   }
-  g_co_sysenv.data = (stCoSysEnv_t *)calloc(1, sizeof(stCoSysEnv_t) * cnt);
+  g_co_sysenv.data = (stCoSysEnv_t*) calloc(1, sizeof(stCoSysEnv_t) * cnt);
 
   for (size_t i = 0; i < cnt; i++) {
     if (name[i] && name[i][0]) {
@@ -862,20 +894,19 @@ int setenv(const char* n, const char* value, int overwrite) {
   return g_sys_setenv_func(n, value, overwrite);
 }
 
-int unsetenv(const char *n) {
+int unsetenv(const char* n) {
   HOOK_SYS_FUNC(unsetenv)
   if (co_is_enable_sys_hook() && g_co_sysenv.data) {
-    stCoRoutine_t *self = co_self();
+    stCoRoutine_t* self = co_self();
     if (self) {
       if (!self->pvEnv) {
         self->pvEnv = dup_co_sysenv_arr(&g_co_sysenv);
       }
-      stCoSysEnvArr_t *arr = (stCoSysEnvArr_t *)(self->pvEnv);
+      stCoSysEnvArr_t* arr = (stCoSysEnvArr_t*) (self->pvEnv);
 
       stCoSysEnv_t name = {(char*) n, 0};
 
-      stCoSysEnv_t* e = (stCoSysEnv_t*) bsearch(&name, arr->data, arr->cnt,
-                                                sizeof(name), co_sysenv_comp);
+      stCoSysEnv_t* e = (stCoSysEnv_t*) bsearch(&name, arr->data, arr->cnt, sizeof(name), co_sysenv_comp);
 
       if (e) {
         if (e->value) {
@@ -911,9 +942,9 @@ char* getenv(const char* n) {
   return g_sys_getenv_func(n);
 }
 
-struct hostent* co_gethostbyname(const char *name);
+struct hostent* co_gethostbyname(const char* name);
 
-struct hostent* gethostbyname(const char *name) {
+struct hostent* gethostbyname(const char* name) {
   HOOK_SYS_FUNC(gethostbyname);
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
@@ -1026,10 +1057,10 @@ struct hostent *co_gethostbyname(const char *name) {
 #endif
 
 /**
+ * co_enable_hook_sys - 设置当前线程中正在运行的协程中使用hook系统调用
  * 开启系统 api(glbc/libc) hook
- * 这函数必须在这里,否则本文件会被忽略！！！
  */ 
-void co_enable_hook_sys() {
+void co_enable_hook_sys() { // 这函数必须写在这里,否则本文件会被忽略!!!
   stCoRoutine_t* co = GetCurrThreadCo();
   if (co) {
     co->cEnableSysHook = 1;
