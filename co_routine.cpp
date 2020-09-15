@@ -421,11 +421,18 @@ static int CoRoutineFunc(stCoRoutine_t* co, void*) {
 
   stCoRoutineEnv_t* env = co->env; // 获取当前线程的调度器
   
-  co_yield_env(env);
+  co_yield_env(env); // 删除调度器的协程数组中最后一个协程
 
   return 0;
 }
 
+/**
+ * co_create_env - 分配协程存储空间(stCoRoutine_t)并初始化其中的部分成员变量
+ * @param env - (input) 当前线程环境,用于初始化协程存储结构stCoRoutine_t
+ * @param pfn - (input) 协程函数,用于初始化协程存储结构stCoRoutine_t
+ * @param arg - (input) 协程函数的参数,用于初始化协程存储结构stCoRoutine_t
+ * @return stCoRoutine_t类型的指针
+ */
 struct stCoRoutine_t* co_create_env(stCoRoutineEnv_t* env,
                                     const stCoRoutineAttr_t* attr,
                                     pfn_co_routine_t pfn, void* arg) {

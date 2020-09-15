@@ -133,6 +133,7 @@ typedef ssize_t (*send_pfn_t) (int socket, const void* buffer, size_t length, in
 typedef ssize_t (*recv_pfn_t) (int socket, void* buffer, size_t length, int flags);
 
 typedef int (*poll_pfn_t) (struct pollfd fds[], nfds_t nfds, int timeout);
+
 typedef int (*setsockopt_pfn_t) (int socket, int level, int option_name,
                                  const void* option_value, socklen_t option_len);
 
@@ -349,15 +350,14 @@ int connect(int fd, const struct sockaddr* address, socklen_t address_len) {
     return g_sys_connect_func(fd, address, address_len);
   }
 
-  // 1.sys call
-  // 系统原始调用，之前socket阶段已经对该fd设置了NONBLOCK状态标志了
+  // 1.sys call(系统原始调用)，之前socket阶段已经对该fd设置了NONBLOCK状态标志了
   int ret = g_sys_connect_func(fd, address, address_len);
 
   rpchook_t* lp = get_by_fd(fd);
   if (!lp)
     return ret;
 
-  if (sizeof(lp->dest) >= address_len) {
+  if (sizeof(lp->dest) >= address_len) { // 把目的地址存入缓存
     memcpy(&(lp->dest), address, (int) address_len); // /tmp/connagent_unix_domain_socket
   }
   if (O_NONBLOCK & lp->user_flag) {
@@ -371,23 +371,40 @@ int connect(int fd, const struct sockaddr* address, socklen_t address_len) {
   // 2.wait
   int pollret = 0;
   struct pollfd pf = {0};
-
   for (int i = 0; i < 3; i++) { // 25s * 3 = 75s
     memset(&pf, 0, sizeof(pf));
-    pf.fd = fd;
-    pf.events = (POLLOUT | POLLERR | POLLHUP);
-
-    pollret = poll(&pf, 1, 25000);
-
-    if (pollret == 1) {
+    pf.fd = fd; // 需要轮询的文件描述符
+    // 等待发生的事件：写数据不会导致阻塞 | 指定的文件描述符发生错误 | 指定的文件描述符挂起事件
+    pf.events = (POLLOUT | POLLERR | POLLHUP); 
+    pollret = poll(&pf, 1, 25000); // 监听该fd的各个事件，超时时25s
+    if (pollret == 1) { // 返回值为1表示该fd已经有事件发生了
       break;
     }
   }
 
+  // 该fd可以写数据了
   if (pf.revents & POLLOUT) { // connect succ
     // 3.check getsockopt ret
     int err = 0;
     socklen_t errlen = sizeof(err);
+    /**
+     * 参数：
+     * socket：将要被设置或者获取选项的套接字
+     * level：选项所在的协议层
+     * optname：需要访问的选项名
+     * optval：对于getsockopt()，指向返回选项值的缓存。
+     *         对于setsockopt()，指向包含新选项值的缓存
+     * optlen：对于getsockopt()，作为入口参数时，选项值的最大长度。作为出口参数时，选项值的实际长度
+     *         对于setsockopt()，The size, in bytes, of the optval buffer
+     * level指定控制套接字的层次.可以取三种值: 
+     * 1) SOL_SOCKET:通用套接字选项
+     * 2) IPPROTO_IP:IP选项
+     * 3) IPPROTO_TCP:TCP选项
+     * optname指定控制的方式(选项的名称)，我们下面详细解释
+     * optval获得或者是设置套接字选项.根据选项名称的数据类型进行转换
+     * 详见：https://www.cnblogs.com/ranjiewen/p/5716343.html
+     * SO_ERROR: 获得套接字错误
+     */
     ret = getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &errlen);
     if (ret < 0) {
       return ret;
@@ -446,6 +463,7 @@ ssize_t read(int fd, void* buf, size_t nbyte) {
 	// poll如果被hook，则调用co_poll向内核注册, co_poll中会切换协程, 协程被恢复时将会从co_poll中的挂起点继续运行
   struct pollfd pf = {0};
   pf.fd = fd;
+  // 等待发生的事件：有数据可读 | 指定的文件描述符发生错误 | 指定的文件描述符挂起事件
   pf.events = (POLLIN | POLLERR | POLLHUP);
   int pollret = poll(&pf, 1, timeout);
 
@@ -479,8 +497,8 @@ ssize_t write(int fd, const void* buf, size_t nbyte) {
   }
 
   // 阻塞, 向内核注册套接字fd的事件
-	// poll如果未hook,则直接调用poll系统调用;
-	// poll如果被hook,则调用co_poll向内核注册, co_poll中会切换协程, 协程被恢复时将会从co_poll中的挂起点继续运行
+	// poll如果未hook，则直接调用poll系统调用;
+	// poll如果被hook，则调用co_poll向内核注册, co_poll中会切换协程, 协程被恢复时将会从co_poll中的挂起点继续运行
   size_t wrotelen = 0;
   int timeout = (lp->write_timeout.tv_sec * 1000) + (lp->write_timeout.tv_usec / 1000);
   ssize_t writeret = g_sys_write_func(fd, (const char*) buf + wrotelen, nbyte - wrotelen);
@@ -495,6 +513,7 @@ ssize_t write(int fd, const void* buf, size_t nbyte) {
     // buf中的数据未全部写到fd上, 则向内核注册套接字fd的事件
     struct pollfd pf = {0};
     pf.fd = fd;
+    // 
     pf.events = (POLLOUT | POLLERR | POLLHUP);
     poll(&pf, 1, timeout);
 
@@ -541,7 +560,7 @@ ssize_t sendto(int socket, const void* message, size_t length, int flags,
     struct pollfd pf = {0};
     pf.fd = socket;
     pf.events = (POLLOUT | POLLERR | POLLHUP);
-    poll(&pf, 1, timeout); // TODO: 这里继续......
+    poll(&pf, 1, timeout);
 
     ret = g_sys_sendto_func(socket, message, length, flags, dest_addr, dest_len);
   }
@@ -589,18 +608,18 @@ ssize_t send(int socket, const void* buffer, size_t length, int flags) {
   if (!lp || (O_NONBLOCK & lp->user_flag)) {
     return g_sys_send_func(socket, buffer, length, flags);
   }
-  size_t wrotelen = 0;
-  int timeout = (lp->write_timeout.tv_sec * 1000) + (lp->write_timeout.tv_usec / 1000);
 
   ssize_t writeret = g_sys_send_func(socket, buffer, length, flags);
-  if (writeret == 0) {
+  if (writeret == 0) { // 没数据可以发送
     return writeret;
   }
 
+  size_t wrotelen = 0; // 总共发送了多少(wrotelen)数据
   if (writeret > 0) {
     wrotelen += writeret;
   }
-  while (wrotelen < length) {
+  int timeout = (lp->write_timeout.tv_sec * 1000) + (lp->write_timeout.tv_usec / 1000);
+  while (wrotelen < length) { // 循环发送完所有数据
     struct pollfd pf = {0};
     pf.fd = socket;
     pf.events = (POLLOUT | POLLERR | POLLHUP);
@@ -609,7 +628,7 @@ ssize_t send(int socket, const void* buffer, size_t length, int flags) {
     writeret = g_sys_send_func(socket, (const char *)buffer + wrotelen, length - wrotelen, flags);
 
     if (writeret <= 0) {
-      break;
+      break; // 数据发完了
     }
     wrotelen += writeret;
   }
@@ -651,15 +670,35 @@ ssize_t recv(int socket, void* buffer, size_t length, int flags) {
   return readret;
 }
 
-extern int co_poll_inner(stCoEpoll_t* ctx, struct pollfd fds[], 
-                         nfds_t nfds, int timeout, poll_pfn_t pollfunc);
+/**
+ * co_poll_inner()向内核注册, co_poll_inner()中会切换协程, 协程被恢复时将会从co_poll_inner()中的挂起点继续运行
+ */
+extern int co_poll_inner(stCoEpoll_t* ctx, 
+                         struct pollfd fds[], nfds_t nfds, 
+                         int timeout, poll_pfn_t pollfunc);
 
-int poll(struct pollfd fds[], nfds_t nfds, int timeout) {
+/**
+ * 成功时，poll()返回结构体中revents域不为0的文件描述符个数；
+ * 如果在超时前没有任何事件发生，poll()返回0；
+ * 失败时，poll()返回-1，并设置errno为下列值之一：
+ * EBADF        一个或多个结构体中指定的文件描述符无效。
+ * EFAULTfds    指针指向的地址超出进程的地址空间。
+ * EINTR        请求的事件之前产生一个信号，调用可以重新发起。
+ * EINVALnfds   参数超出PLIMIT_NOFILE值。
+ * ENOMEM　　     可用内存不足，无法完成请求。
+ * 
+ * @param timeout timeout参数指定等待的毫秒数，无论I/O是否准备好，poll都会返回。
+ * timeout指定为负数值表示无限超时，使poll()一直挂起直到一个指定事件发生；
+ * timeout为0指示poll调用立即返回并列出准备好I/O的文件描述符，但并不等待其它的事件。
+ * 这种情况下，poll()就像它的名字那样，一旦选举出来，立即返回
+ */
+int poll(struct pollfd fds[], nfds_t nfds, int timeout) { // TODO: 这里继续......
   HOOK_SYS_FUNC(poll);
 
   if (!co_is_enable_sys_hook() || timeout == 0) {
     return g_sys_poll_func(fds, nfds, timeout);
   }
+
   pollfd* fds_merge = NULL;
   nfds_t nfds_merge = 0;
   std::map<int, int> m; // fd --> idx
