@@ -61,12 +61,16 @@ struct stCoEpoll_t;
  * 时正确恢复到挂起点(挂起点位于父协程中), 我们就需要记录这种嵌套调用过程; 另外, 协程中的套接字向内核注册了事件,
  * 我们必须保存套接字和协程的对应关系, 以便该线程的eventloop中检测到套接字上事件发生时, 能够恢复该套接字对应的
  * 协程来处理事件.
+ * 
+ * 其中 pCallStack[0]存储的是主协程，pCallStack[1]存储的是当前正在运行的协程，在生产者与消息费者的示例中，
+ * pCallStack 只会使用到前两个数组，对于挂起的协程环境是存储在事件的双向链表中，都过事件触发 机制来控制;
+ * pEpoll 表示 EPOLL IO 管理器，是结合定时器或者 IO 事件来管理协程的调度的;
  */
 // 代表一个thread中的所有协程
 struct stCoRoutineEnv_t {
   stCoRoutine_t* pCallStack[128]; // 该线程内允许嵌套创建128个协程(即协程1内创建协程2, 协程2内创建协程3... 
                                   // 协程127内创建协程128. 该结构虽然是数组, 但将其作为栈来使用, 满足后进先出的特点)
-  int iCallStackSize; // 该线程内嵌套创建的协程数量, 即pCallStack数组中元素的数量
+  int iCallStackSize; // 该线程内嵌套创建的协程数量, 即 pCallStack 数组中元素的数量
   stCoEpoll_t* pEpoll; // 该线程内的epoll实例(套接字通过该结构内的epoll句柄向内核注册事件), 也用于该线程的事件循环eventloop中
 
   // for copy stack log lastco and nextco
@@ -290,7 +294,7 @@ struct stTimeoutItem_t;
  * 同一线程内所有的套接字都通过iEpollFd文件描述符向内核注册事件
  */
 struct stCoEpoll_t {
-  int iEpollFd; // 由epoll_create函数创建的epoll句柄
+  int iEpollFd; // 由 epoll_create()函数创建的epoll句柄
   static const int _EPOLL_SIZE = 1024 * 10;
   struct stTimeout_t* pTimeout;
   struct stTimeoutItemLink_t* pstTimeoutList;
@@ -689,6 +693,9 @@ static short EpollEvent2Poll(uint32_t events) {
 // 我们最多可以在协程嵌套 co_resume 新协程的深度为 128（协程里面运行新的协程）
 static __thread stCoRoutineEnv_t* gCoEnvPerThread = nullptr; // 表示每条线程中的协程上下文
 
+/**
+ * 初始化当前线程的协程环境
+ */
 void co_init_curr_thread_env() {
   gCoEnvPerThread = (stCoRoutineEnv_t*) calloc(1, sizeof(stCoRoutineEnv_t));
   stCoRoutineEnv_t *env = gCoEnvPerThread;
@@ -732,7 +739,7 @@ void OnPollPreparePfn(stTimeoutItem_t* ap, struct epoll_event& e, stTimeoutItemL
   }
 }
 
-void co_eventloop(stCoEpoll_t *ctx, pfn_co_eventloop_t pfn, void *arg) {
+void co_eventloop(stCoEpoll_t* ctx, pfn_co_eventloop_t pfn, void* arg) {
   if (!ctx->result) {
     ctx->result = co_epoll_res_alloc(stCoEpoll_t::_EPOLL_SIZE);
   }
@@ -741,13 +748,13 @@ void co_eventloop(stCoEpoll_t *ctx, pfn_co_eventloop_t pfn, void *arg) {
   for (;;) {
     int ret = co_epoll_wait(ctx->iEpollFd, result, stCoEpoll_t::_EPOLL_SIZE, 1);
 
-    stTimeoutItemLink_t *active = (ctx->pstActiveList);
-    stTimeoutItemLink_t *timeout = (ctx->pstTimeoutList);
+    stTimeoutItemLink_t* active = (ctx->pstActiveList);
+    stTimeoutItemLink_t* timeout = (ctx->pstTimeoutList);
 
     memset(timeout, 0, sizeof(stTimeoutItemLink_t));
 
     for (int i = 0; i < ret; i++) {
-      stTimeoutItem_t *item = (stTimeoutItem_t *)result->events[i].data.ptr;
+      stTimeoutItem_t* item = (stTimeoutItem_t*) result->events[i].data.ptr;
       if (item->pfnPrepare) {
         item->pfnPrepare(item, result->events[i], active);
       } else {
@@ -758,7 +765,7 @@ void co_eventloop(stCoEpoll_t *ctx, pfn_co_eventloop_t pfn, void *arg) {
     unsigned long long now = GetTickMS();
     TakeAllTimeout(ctx->pTimeout, now, timeout);
 
-    stTimeoutItem_t *lp = timeout->head;
+    stTimeoutItem_t* lp = timeout->head;
     while (lp) {
       // printf("raise timeout %p\n",lp);
       lp->bTimeout = true;
@@ -792,26 +799,24 @@ void co_eventloop(stCoEpoll_t *ctx, pfn_co_eventloop_t pfn, void *arg) {
     }
   }
 }
-void OnCoroutineEvent(stTimeoutItem_t *ap) {
-  stCoRoutine_t *co = (stCoRoutine_t *)ap->pArg;
+void OnCoroutineEvent(stTimeoutItem_t* ap) {
+  stCoRoutine_t* co = (stCoRoutine_t*) ap->pArg;
   co_resume(co);
 }
 
-stCoEpoll_t *AllocEpoll() {
-  stCoEpoll_t *ctx = (stCoEpoll_t *)calloc(1, sizeof(stCoEpoll_t));
+stCoEpoll_t* AllocEpoll() {
+  stCoEpoll_t* ctx = (stCoEpoll_t*) calloc(1, sizeof(stCoEpoll_t));
 
   ctx->iEpollFd = co_epoll_create(stCoEpoll_t::_EPOLL_SIZE);
   ctx->pTimeout = AllocTimeout(60 * 1000);
 
-  ctx->pstActiveList =
-      (stTimeoutItemLink_t *)calloc(1, sizeof(stTimeoutItemLink_t));
-  ctx->pstTimeoutList =
-      (stTimeoutItemLink_t *)calloc(1, sizeof(stTimeoutItemLink_t));
+  ctx->pstActiveList = (stTimeoutItemLink_t*) calloc(1, sizeof(stTimeoutItemLink_t));
+  ctx->pstTimeoutList = (stTimeoutItemLink_t*) calloc(1, sizeof(stTimeoutItemLink_t));
 
   return ctx;
 }
 
-void FreeEpoll(stCoEpoll_t *ctx) {
+void FreeEpoll(stCoEpoll_t* ctx) {
   if (ctx) {
     free(ctx->pstActiveList);
     free(ctx->pstTimeoutList);
@@ -839,10 +844,15 @@ stCoRoutine_t* GetCurrThreadCo() {
   return GetCurrCo(env);
 }
 
-typedef int (*poll_pfn_t)(struct pollfd fds[], nfds_t nfds, int timeout);
+typedef int (*poll_pfn_t) (struct pollfd fds[], nfds_t nfds, int timeout);
 
-int co_poll_inner(stCoEpoll_t* ctx, struct pollfd fds[], 
-                  nfds_t nfds, int timeout, poll_pfn_t pollfunc) {
+// TODO: 这里继续......
+/**
+ * @param pollfunc 系统调用poll()
+ */
+int co_poll_inner(stCoEpoll_t* ctx, 
+                  struct pollfd fds[], nfds_t nfds, 
+                  int timeout, poll_pfn_t pollfunc) {
                     
   if (timeout == 0) {
     return pollfunc(fds, nfds, timeout);
@@ -878,7 +888,7 @@ int co_poll_inner(stCoEpoll_t* ctx, struct pollfd fds[],
     arg.pPollItems[i].pPoll = &arg;
 
     arg.pPollItems[i].pfnPrepare = OnPollPreparePfn;
-    struct epoll_event &ev = arg.pPollItems[i].stEvent;
+    struct epoll_event& ev = arg.pPollItems[i].stEvent;
 
     if (fds[i].fd > -1) {
       ev.data.ptr = arg.pPollItems + i;
@@ -990,6 +1000,9 @@ bool co_is_enable_sys_hook() {
   return (co && co->cEnableSysHook);
 }
 
+/**
+ * 获取当前线程中的当前正在执行的协程
+ */
 stCoRoutine_t* co_self() { 
   return GetCurrThreadCo(); 
 }
@@ -1066,9 +1079,11 @@ int co_cond_timedwait(stCoCond_t* link, int ms) {
 
   return 0;
 }
+
 stCoCond_t* co_cond_alloc() {
   return (stCoCond_t*) calloc(1, sizeof(stCoCond_t));
 }
+
 int co_cond_free(stCoCond_t* cc) {
   free(cc);
   return 0;

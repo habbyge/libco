@@ -87,16 +87,16 @@ public:
     if (!m_pp[idx]) {
       m_pp[idx] = (void**)calloc(1, sizeof(void*) * col_size);
     }
-    m_pp[idx][fd % col_size] = (void *)ptr;
+    m_pp[idx][fd % col_size] = (void*) ptr;
     return 0;
   }
 
-  inline void *get(int fd) {
+  inline void* get(int fd) {
     int idx = fd / row_size;
     if (idx < 0 || idx >= sizeof(m_pp) / sizeof(m_pp[0])) {
       return NULL;
     }
-    void **lp = m_pp[idx];
+    void** lp = m_pp[idx];
     if (!lp)
       return NULL;
 
@@ -106,7 +106,7 @@ public:
 
 __thread clsFdMap* s_fd_map = NULL;
 
-static inline clsFdMap *get_fd_map() {
+static inline clsFdMap* get_fd_map() {
   if (!s_fd_map) {
     s_fd_map = new clsFdMap();
   }
@@ -118,8 +118,12 @@ struct kevent_pair_t {
   int events;
   uint64_t u64;
 };
-int co_epoll_create(int size) { return kqueue(); }
-int co_epoll_wait(int epfd, struct co_epoll_res *events, int maxevents, int timeout) {
+
+int co_epoll_create(int size) { 
+  return kqueue(); 
+}
+
+int co_epoll_wait(int epfd, struct co_epoll_res* events, int maxevents, int timeout) {
   struct timespec t = {0};
   if (timeout > 0) {
     t.tv_sec = timeout;
@@ -131,9 +135,9 @@ int co_epoll_wait(int epfd, struct co_epoll_res *events, int maxevents, int time
 
   int j = 0;
   for (int i = 0; i < ret; i++) {
-    struct kevent &kev = events->eventlist[i];
-    struct kevent_pair_t *ptr = (struct kevent_pair_t *)kev.udata;
-    struct epoll_event *ev = events->events + i;
+    struct kevent& kev = events->eventlist[i];
+    struct kevent_pair_t* ptr = (struct kevent_pair_t*) kev.udata;
+    struct epoll_event* ev = events->events + i;
     if (0 == ptr->fire_idx) {
       ptr->fire_idx = i + 1;
       memset(ev, 0, sizeof(*ev));
@@ -149,14 +153,14 @@ int co_epoll_wait(int epfd, struct co_epoll_res *events, int maxevents, int time
     ev->data.u64 = ptr->u64;
   }
   for (int i = 0; i < ret; i++) {
-    ((struct kevent_pair_t *)(events->eventlist[i].udata))->fire_idx = 0;
+    ((struct kevent_pair_t*) (events->eventlist[i].udata))->fire_idx = 0;
   }
   return j;
 }
 
 int co_epoll_del(int epfd, int fd) {
   struct timespec t = {0};
-  struct kevent_pair_t *ptr = (struct kevent_pair_t *)get_fd_map()->get(fd);
+  struct kevent_pair_t* ptr = (struct kevent_pair_t*) get_fd_map()->get(fd);
   if (!ptr)
     return 0;
   if (EPOLLIN & ptr->events) {
@@ -178,7 +182,7 @@ int co_epoll_del(int epfd, int fd) {
   return 0;
 }
 
-int co_epoll_ctl(int epfd, int op, int fd, struct epoll_event *ev) {
+int co_epoll_ctl(int epfd, int op, int fd, struct epoll_event* ev) {
   if (EPOLL_CTL_DEL == op) {
     return co_epoll_del(epfd, fd);
   }
@@ -196,9 +200,9 @@ int co_epoll_ctl(int epfd, int op, int fd, struct epoll_event *ev) {
     return -1;
   }
 
-  struct kevent_pair_t *ptr = (struct kevent_pair_t *)get_fd_map()->get(fd);
+  struct kevent_pair_t* ptr = (struct kevent_pair_t*) get_fd_map()->get(fd);
   if (!ptr) {
-    ptr = (kevent_pair_t *)calloc(1, sizeof(kevent_pair_t));
+    ptr = (kevent_pair_t*) calloc(1, sizeof(kevent_pair_t));
     get_fd_map()->set(fd, ptr);
   }
 
@@ -225,7 +229,6 @@ int co_epoll_ctl(int epfd, int op, int fd, struct epoll_event *ev) {
 
   do {
     if (ev->events & EPOLLIN) {
-
       // 2.add
       struct kevent kev = {0};
       EV_SET(&kev, fd, EVFILT_READ, EV_ADD, 0, 0, ptr);
@@ -255,17 +258,17 @@ int co_epoll_ctl(int epfd, int op, int fd, struct epoll_event *ev) {
   return ret;
 }
 
-struct co_epoll_res *co_epoll_res_alloc(int n) {
+struct co_epoll_res* co_epoll_res_alloc(int n) {
   struct co_epoll_res* ptr = (struct co_epoll_res*) malloc(sizeof(struct co_epoll_res));
 
   ptr->size = n;
-  ptr->events = (struct epoll_event *)calloc(1, n * sizeof(struct epoll_event));
-  ptr->eventlist = (struct kevent *)calloc(1, n * sizeof(struct kevent));
+  ptr->events = (struct epoll_event*) calloc(1, n * sizeof(struct epoll_event));
+  ptr->eventlist = (struct kevent*) calloc(1, n * sizeof(struct kevent));
 
   return ptr;
 }
 
-void co_epoll_res_free(struct co_epoll_res *ptr) {
+void co_epoll_res_free(struct co_epoll_res* ptr) {
   if (!ptr)
     return;
   if (ptr->events)

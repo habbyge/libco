@@ -692,7 +692,7 @@ extern int co_poll_inner(stCoEpoll_t* ctx,
  * timeout为0指示poll调用立即返回并列出准备好I/O的文件描述符，但并不等待其它的事件。
  * 这种情况下，poll()就像它的名字那样，一旦选举出来，立即返回
  */
-int poll(struct pollfd fds[], nfds_t nfds, int timeout) { // TODO: 这里继续......
+int poll(struct pollfd fds[], nfds_t nfds, int timeout) {
   HOOK_SYS_FUNC(poll);
 
   if (!co_is_enable_sys_hook() || timeout == 0) {
@@ -705,13 +705,13 @@ int poll(struct pollfd fds[], nfds_t nfds, int timeout) { // TODO: 这里继续.
   std::map<int, int>::iterator it;
   if (nfds > 1) {
     fds_merge = (pollfd*) malloc(sizeof(pollfd) * nfds);
-    for (size_t i = 0; i < nfds; i++) {
-      if ((it = m.find(fds[i].fd)) == m.end()) {
+    for (size_t i = 0; i < nfds; i++) { // 可能有重复的fd，需要合并(合并其epoll监听的事件)
+      if ((it = m.find(fds[i].fd)) == m.end()) { // map中该fd miss了
         fds_merge[nfds_merge] = fds[i];
-        m[fds[i].fd] = nfds_merge;
+        m[fds[i].fd] = nfds_merge; // key:fd,val:fds_merge中fd的index(索引)
         nfds_merge++;
-      } else {
-        int j = it->second;
+      } else { // map中该fd hit(命中)
+        int j = it->second; // 在fds_merge中的index
         fds_merge[j].events |= fds[i].events; // merge in j slot
       }
     }
@@ -727,6 +727,8 @@ int poll(struct pollfd fds[], nfds_t nfds, int timeout) { // TODO: 这里继续.
         it = m.find(fds[i].fd);
         if (it != m.end()) {
           int j = it->second;
+          // revents字段是真实发生的事件集合；events字段是需要监听的事件集合
+          // 这里再过滤一次fd真实发生的事件
           fds[i].revents = fds_merge[j].revents & fds[i].events;
         }
       }
@@ -737,8 +739,8 @@ int poll(struct pollfd fds[], nfds_t nfds, int timeout) { // TODO: 这里继续.
 }
 
 /**
- * setsockopt - 被hook后的setsockopt函数, 主要是初始化(g_rpchook_socket_fd中)套
- * 接字fd对应的rpchook_t类型变量的read_timeout和write_timeout成员
+ * setsockopt - 被hook后的setsockopt函数, 主要是初始化(g_rpchook_socket_fd中)套接字fd
+ * 对应的rpchook_t类型变量的read_timeout和write_timeout成员
  */
 int setsockopt(int fd, int level, int option_name, const void* option_value, socklen_t option_len) {
   HOOK_SYS_FUNC(setsockopt);
@@ -748,7 +750,7 @@ int setsockopt(int fd, int level, int option_name, const void* option_value, soc
   }
   rpchook_t* lp = get_by_fd(fd);
 
-  if (lp && SOL_SOCKET == level) {
+  if (lp && SOL_SOCKET == level) { // 通用套接字选项
     struct timeval* val = (struct timeval*) option_value;
     if (SO_RCVTIMEO == option_name) {
       memcpy(&lp->read_timeout, val, sizeof(*val));
@@ -876,7 +878,7 @@ static int co_sysenv_comp(const void* a, const void* b) {
 }
 
 static stCoSysEnvArr_t g_co_sysenv = {0};
-
+// TODO: 这里继续................................................................................................
 void co_set_env_list(const char* name[], size_t cnt) {
   if (g_co_sysenv.data) {
     return;
