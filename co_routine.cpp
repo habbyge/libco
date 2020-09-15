@@ -51,7 +51,7 @@ extern "C" {
 
 using namespace std;
 
-stCoRoutine_t* GetCurrCo(stCoRoutineEnv_t *env);
+stCoRoutine_t* GetCurrCo(stCoRoutineEnv_t* env);
 struct stCoEpoll_t;
 
 /**
@@ -83,8 +83,7 @@ struct stCoRoutineEnv_t {
 /**
  * co_log_err - 协程日志输出
  */
-void co_log_err(const char* fmt, ...) {
-}
+void co_log_err(const char* fmt, ...) {}
 
 #if defined(__LIBCO_RDTSCP__)
 static unsigned long long counter(void) {
@@ -96,14 +95,14 @@ static unsigned long long counter(void) {
   return (o | lo);
 }
 static unsigned long long getCpuKhz() {
-  FILE *fp = fopen("/proc/cpuinfo", "r");
+  FILE* fp = fopen("/proc/cpuinfo", "r");
   if (!fp)
     return 1;
   char buf[4096] = {0};
   fread(buf, 1, sizeof(buf), fp);
   fclose(fp);
 
-  char *lp = strstr(buf, "cpu MHz");
+  char* lp = strstr(buf, "cpu MHz");
   if (!lp)
     return 1;
   lp += strlen("cpu MHz");
@@ -160,7 +159,8 @@ static pid_t GetPid() {
 }
 */
 
-template <class T, class TLink> void RemoveFromLink(T* ap) {
+template<class T, class TLink>
+void RemoveFromLink(T* ap) {
   TLink* lst = ap->pLink;
   if (!lst)
     return;
@@ -206,6 +206,7 @@ void inline AddTail(TLink* apLink, TNode* ap) {
   }
   ap->pLink = apLink;
 }
+
 template<typename TNode, typename TLink> 
 void inline PopHead(TLink* apLink) {
   if (!apLink->head) {
@@ -226,7 +227,7 @@ void inline PopHead(TLink* apLink) {
   }
 }
 
-template <class TNode, class TLink>
+template<class TNode, class TLink>
 void inline Join(TLink* apLink, TLink* apOther) {
   // printf("apOther %p\n",apOther);
   if (!apOther->head) {
@@ -290,12 +291,12 @@ struct stTimeoutItemLink_t;
 struct stTimeoutItem_t;
 
 /**
- * 线程epoll实例 - 该结构存在于stCoRoutineEnv_t结构中
- * 同一线程内所有的套接字都通过iEpollFd文件描述符向内核注册事件
+ * 线程epoll实例 - 该结构存在于 stCoRoutineEnv_t 结构中
+ * 同一线程内所有的套接字都通过 iEpollFd 文件描述符 向内核注册事件
  */
 struct stCoEpoll_t {
   int iEpollFd; // 由 epoll_create()函数创建的epoll句柄
-  static const int _EPOLL_SIZE = 1024 * 10;
+  static const int _EPOLL_SIZE = 1024 * 10; // 10K
   struct stTimeout_t* pTimeout;
   struct stTimeoutItemLink_t* pstTimeoutList;
   struct stTimeoutItemLink_t* pstActiveList;
@@ -323,7 +324,7 @@ struct stTimeoutItem_t {
   OnPreparePfn_t pfnPrepare;
   OnProcessPfn_t pfnProcess;
 
-  void* pArg; // routine
+  void* pArg; // routine，设置为当前线程中当前正在执行的协程
   bool bTimeout;
 };
 
@@ -458,7 +459,7 @@ struct stCoRoutine_t* co_create_env(stCoRoutineEnv_t* env,
 
   stCoRoutine_t* lp = (stCoRoutine_t*) malloc(sizeof(stCoRoutine_t));
 
-  memset(lp, 0, (long)(sizeof(stCoRoutine_t)));
+  memset(lp, 0, (long) (sizeof(stCoRoutine_t)));
 
   lp->env = env;
   lp->pfn = pfn;
@@ -496,19 +497,19 @@ int co_create(stCoRoutine_t** ppco, const stCoRoutineAttr_t* attr, pfn_co_routin
   *ppco = co;
   return 0;
 }
+
 void co_free(stCoRoutine_t* co) {
   if (!co->cIsShareStack) {
     free(co->stack_mem->stack_buffer);
     free(co->stack_mem);
-  }
-  // walkerdu fix at 2018-01-20
-  //存在内存泄漏
-  else {
-    if (co->save_buffer)
+  } else { // walkerdu fix at 2018-01-20 存在内存泄漏
+    if (co->save_buffer) {
       free(co->save_buffer);
+    }
 
-    if (co->stack_mem->occupy_co == co)
+    if (co->stack_mem->occupy_co == co) {
       co->stack_mem->occupy_co = NULL;
+    }
   }
 
   free(co);
@@ -527,7 +528,7 @@ void co_resume(stCoRoutine_t* co) {
     co->cStart = 1;
   }
   env->pCallStack[env->iCallStackSize++] = co;
-  co_swap(lpCurrRoutine, co);
+  co_swap(lpCurrRoutine, co); // 切换协程
 }
 
 // walkerdu 2018-01-14
@@ -565,7 +566,7 @@ void co_yield(stCoRoutine_t* co) {
   co_yield_env(co->env); 
 }
 
-void save_stack_buffer(stCoRoutine_t *occupy_co) {
+void save_stack_buffer(stCoRoutine_t* occupy_co) {
   /// copy out
   stStackMem_t* stack_mem = occupy_co->stack_mem;
   int len = stack_mem->stack_bp - occupy_co->stack_sp;
@@ -637,21 +638,21 @@ struct stPoll_t : public stTimeoutItem_t {
 
   int iRaiseCnt;
 };
+
 struct stPollItem_t : public stTimeoutItem_t {
-  struct pollfd *pSelf;
-  stPoll_t *pPoll;
+  struct pollfd* pSelf;
+  stPoll_t* pPoll;
 
   struct epoll_event stEvent;
 };
 
 /**
- *   EPOLLPRI 		POLLPRI    // There is urgent data to read.
- *   EPOLLMSG 		POLLMSG
+ * EPOLLPRI 		POLLPRI    // There is urgent data to read.
+ * EPOLLMSG 		POLLMSG
  *
- *   				POLLREMOVE
- *   				POLLRDHUP
- *   				POLLNVAL
- *
+ * POLLREMOVE
+ * POLLRDHUP
+ * POLLNVAL
  */
 static uint32_t PollEvent2Epoll(short events) {
   uint32_t e = 0;
@@ -669,6 +670,7 @@ static uint32_t PollEvent2Epoll(short events) {
     e |= EPOLLWRNORM;
   return e;
 }
+
 static short EpollEvent2Poll(uint32_t events) {
   short e = 0;
   if (events & EPOLLIN)
@@ -698,7 +700,7 @@ static __thread stCoRoutineEnv_t* gCoEnvPerThread = nullptr; // 表示每条线�
  */
 void co_init_curr_thread_env() {
   gCoEnvPerThread = (stCoRoutineEnv_t*) calloc(1, sizeof(stCoRoutineEnv_t));
-  stCoRoutineEnv_t *env = gCoEnvPerThread;
+  stCoRoutineEnv_t* env = gCoEnvPerThread;
 
   env->iCallStackSize = 0;
   struct stCoRoutine_t* self = co_create_env(env, NULL, NULL, NULL);
@@ -714,13 +716,17 @@ void co_init_curr_thread_env() {
   stCoEpoll_t* ev = AllocEpoll();
   SetEpoll(env, ev);
 }
+
 stCoRoutineEnv_t* co_get_curr_thread_env() { 
   return gCoEnvPerThread;
 }
 
-void OnPollProcessEvent(stTimeoutItem_t *ap) {
-  stCoRoutine_t* co = (stCoRoutine_t*) ap->pArg;
-  co_resume(co);
+/**
+ * Poll处理事件
+ */
+void OnPollProcessEvent(stTimeoutItem_t* ap) {
+  stCoRoutine_t* co = (stCoRoutine_t*) ap->pArg; // 获取当前正在运行的协程对象实例
+  co_resume(co); // resume当前这个协程实例
 }
 
 void OnPollPreparePfn(stTimeoutItem_t* ap, struct epoll_event& e, stTimeoutItemLink_t* active) {
@@ -743,7 +749,7 @@ void co_eventloop(stCoEpoll_t* ctx, pfn_co_eventloop_t pfn, void* arg) {
   if (!ctx->result) {
     ctx->result = co_epoll_res_alloc(stCoEpoll_t::_EPOLL_SIZE);
   }
-  co_epoll_res *result = ctx->result;
+  co_epoll_res* result = ctx->result;
 
   for (;;) {
     int ret = co_epoll_wait(ctx->iEpollFd, result, stCoEpoll_t::_EPOLL_SIZE, 1);
@@ -776,7 +782,6 @@ void co_eventloop(stCoEpoll_t* ctx, pfn_co_eventloop_t pfn, void* arg) {
 
     lp = active->head;
     while (lp) {
-
       PopHead<stTimeoutItem_t, stTimeoutItemLink_t>(active);
       if (lp->bTimeout && now < lp->ullExpireTime) {
         int ret = AddTimeout(ctx->pTimeout, lp, now);
@@ -799,6 +804,7 @@ void co_eventloop(stCoEpoll_t* ctx, pfn_co_eventloop_t pfn, void* arg) {
     }
   }
 }
+
 void OnCoroutineEvent(stTimeoutItem_t* ap) {
   stCoRoutine_t* co = (stCoRoutine_t*) ap->pArg;
   co_resume(co);
@@ -807,7 +813,7 @@ void OnCoroutineEvent(stTimeoutItem_t* ap) {
 stCoEpoll_t* AllocEpoll() {
   stCoEpoll_t* ctx = (stCoEpoll_t*) calloc(1, sizeof(stCoEpoll_t));
 
-  ctx->iEpollFd = co_epoll_create(stCoEpoll_t::_EPOLL_SIZE);
+  ctx->iEpollFd = co_epoll_create(stCoEpoll_t::_EPOLL_SIZE); // 通过kqueue()初始化
   ctx->pTimeout = AllocTimeout(60 * 1000);
 
   ctx->pstActiveList = (stTimeoutItemLink_t*) calloc(1, sizeof(stTimeoutItemLink_t));
@@ -846,7 +852,6 @@ stCoRoutine_t* GetCurrThreadCo() {
 
 typedef int (*poll_pfn_t) (struct pollfd fds[], nfds_t nfds, int timeout);
 
-// TODO: 这里继续......
 /**
  * @param pollfunc 系统调用poll()
  */
@@ -860,8 +865,8 @@ int co_poll_inner(stCoEpoll_t* ctx,
   if (timeout < 0) {
     timeout = INT_MAX;
   }
-  int epfd = ctx->iEpollFd;
-  stCoRoutine_t* self = co_self();
+  int epfd = ctx->iEpollFd; // TODO: epoll的句柄(实际是kqueue)
+  stCoRoutine_t* self = co_self(); // 获取当前需要执行的协程实例
 
   // 1.struct change
   stPoll_t& arg = *((stPoll_t*) malloc(sizeof(stPoll_t)));
@@ -873,14 +878,14 @@ int co_poll_inner(stCoEpoll_t* ctx,
 
   stPollItem_t arr[2];
   if (nfds < sizeof(arr) / sizeof(arr[0]) && !self->cIsShareStack) {
-    arg.pPollItems = arr;
+    arg.pPollItems = arr; // nfds < 2 && 没有使用共享栈
   } else {
     arg.pPollItems = (stPollItem_t*) malloc(nfds * sizeof(stPollItem_t));
   }
   memset(arg.pPollItems, 0, nfds * sizeof(stPollItem_t));
 
   arg.pfnProcess = OnPollProcessEvent;
-  arg.pArg = GetCurrCo(co_get_curr_thread_env());
+  arg.pArg = GetCurrCo(co_get_curr_thread_env()); // stCoRoutine_t 当前协程实例
 
   // 2. add epoll
   for (nfds_t i = 0; i < nfds; i++) {
@@ -980,6 +985,7 @@ void* co_getspecific(pthread_key_t key) {
   }
   return co->aSpec[key].value;
 }
+
 int co_setspecific(pthread_key_t key, const void* value) {
   stCoRoutine_t* co = GetCurrThreadCo();
   if (!co || co->cIsMain) {
@@ -995,6 +1001,7 @@ void co_disable_hook_sys() {
     co->cEnableSysHook = 0;
   }
 }
+
 bool co_is_enable_sys_hook() {
   stCoRoutine_t* co = GetCurrThreadCo();
   return (co && co->cEnableSysHook);

@@ -120,9 +120,17 @@ struct kevent_pair_t {
 };
 
 int co_epoll_create(int size) { 
+  // 为什么epoll和kqueue可以用基于事件的方式，单线程的实现并发？
+  // kqueue() - 生成一个内核事件队列，返回该队列的文件描述符。其它 API 通过该描述符操作这个 kqueue。
+  // kevent() - 提供向内核注册/反注册事件和返回就绪事件或错误事件
+  // struct kevent 就是kevent()操作的最基本的事件结构，在一个 kqueue 中，{ident, filter} 确定一个唯一的事件：
+  // 在 kevent 返回时，将读写缓冲区的可读字节数或可写空间大小告诉应用程序。基于这个特性，使用 kqueue 的应用一般不使用非阻塞IO
   return kqueue(); 
 }
 
+/**
+ * 等待直到注册的事件发生
+ */
 int co_epoll_wait(int epfd, struct co_epoll_res* events, int maxevents, int timeout) {
   struct timespec t = {0};
   if (timeout > 0) {
