@@ -884,7 +884,8 @@ int co_poll_inner(stCoEpoll_t* ctx,
 
   stPollItem_t arr[2];
   if (nfds < sizeof(arr) / sizeof(arr[0]) && !self->cIsShareStack) {
-    arg.pPollItems = arr; // nfds < 2 && 没有使用共享栈
+    // 意思是：只有一个fd需要poll 且 当前协程是独享栈模式
+    arg.pPollItems = arr; // nfds < 2 && 没有使用共享栈，
   } else {
     arg.pPollItems = (stPollItem_t*) malloc(nfds * sizeof(stPollItem_t));
   }
