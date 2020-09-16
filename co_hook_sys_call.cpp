@@ -49,9 +49,11 @@ available.
 
 typedef long long ll64_t;
 
-// FIXME: 注释参考: 
+// 注释参考: 
 // http://kaiyuan.me/2017/05/03/function_wrapper/
 // https://blog.csdn.net/breaksoftware/article/details/77340634
+
+// 这个源文件主要功能是hook了libco协程库中使用的Linux系统调用，又原先的系统调用功能，增加了针对协程(coroutine)的部分
 
 // 在研究C++中协程机制时，发现有些实现通过hack掉glibc的read、write等IO操作函数，以达到迁移协程框架时，
 // 最小化代码改动，遂小小研究一下linux下的hook机制。
@@ -102,7 +104,7 @@ struct rpchook_t {
  */
 static inline pid_t GetPid() {
   char** p = (char**) pthread_self();
-  return p ? *(pid_t*) (p + 18) : getpid();
+  return p ? *(pid_t*) (p + 18) : getpid(); // TODO: 这里不懂
 }
 
 /**
@@ -853,16 +855,25 @@ int fcntl(int fildes, int cmd, ...) {
   return ret;
 }
 
+/**
+ * 协程(coroutine)的一个环境变量
+ */
 struct stCoSysEnv_t {
   char* name;
   char* value;
 };
 
+/**
+ * 协程(coroutine)的所有环境变量
+ */
 struct stCoSysEnvArr_t {
   stCoSysEnv_t* data;
   size_t cnt;
 };
 
+/**
+ * 深度copy全局环境变量
+ */
 static stCoSysEnvArr_t* dup_co_sysenv_arr(stCoSysEnvArr_t* arr) {
   stCoSysEnvArr_t* lp = (stCoSysEnvArr_t*) calloc(sizeof(stCoSysEnvArr_t), 1);
   if (arr->cnt) {
@@ -873,14 +884,14 @@ static stCoSysEnvArr_t* dup_co_sysenv_arr(stCoSysEnvArr_t* arr) {
   return lp;
 }
 
-static int co_sysenv_comp(const void* a, const void* b) {
-  return strcmp(((stCoSysEnv_t*) a)->name, ((stCoSysEnv_t*) b)->name);
+static int co_sysenv_comp(const void* left, const void* right) {
+  return strcmp(((stCoSysEnv_t*) left)->name, ((stCoSysEnv_t*) right)->name);
 }
 
-static stCoSysEnvArr_t g_co_sysenv = {0};
-// TODO: 这里继续................................................................................................
+static stCoSysEnvArr_t g_co_sysenv = {0}; // 协程系统环境变量
+
 void co_set_env_list(const char* name[], size_t cnt) {
-  if (g_co_sysenv.data) {
+  if (g_co_sysenv.data) { // 已经有数据了，不再重复设置
     return;
   }
   g_co_sysenv.data = (stCoSysEnv_t*) calloc(1, sizeof(stCoSysEnv_t) * cnt);
@@ -911,21 +922,22 @@ int setenv(const char* n, const char* value, int overwrite) {
   HOOK_SYS_FUNC(setenv)
 
   if (co_is_enable_sys_hook() && g_co_sysenv.data) {
-    stCoRoutine_t* self = co_self();
+    stCoRoutine_t* self = co_self(); // 获取当前正在运行的协程实例
     if (self) {
       if (!self->pvEnv) {
         self->pvEnv = dup_co_sysenv_arr(&g_co_sysenv);
       }
       stCoSysEnvArr_t* arr = (stCoSysEnvArr_t*) (self->pvEnv);
 
-      stCoSysEnv_t name = {(char*) n, 0};
+      stCoSysEnv_t name = {(char*) n, 0}; // C++11的初始化列表语法
 
       stCoSysEnv_t* e = (stCoSysEnv_t*) bsearch(&name, arr->data, arr->cnt, sizeof(name), co_sysenv_comp);
 
       if (e) {
         if (overwrite || !e->value) {
-          if (e->value)
+          if (e->value) {
             free(e->value);
+          }
           e->value = (value ? strdup(value) : 0);
         }
         return 0;
@@ -937,6 +949,7 @@ int setenv(const char* n, const char* value, int overwrite) {
 
 int unsetenv(const char* n) {
   HOOK_SYS_FUNC(unsetenv)
+
   if (co_is_enable_sys_hook() && g_co_sysenv.data) {
     stCoRoutine_t* self = co_self();
     if (self) {
@@ -985,6 +998,9 @@ char* getenv(const char* n) {
 
 struct hostent* co_gethostbyname(const char* name);
 
+/**
+ * 通过域名获取ip地址
+ */
 struct hostent* gethostbyname(const char* name) {
   HOOK_SYS_FUNC(gethostbyname);
 
@@ -1003,7 +1019,7 @@ struct res_state_wrap {
 };
 
 CO_ROUTINE_SPECIFIC(res_state_wrap, __co_state_wrap);
-// FIXME: ----------------------------------------------------------------------------上面的宏定义展开
+// ----------------------------------------------------------------------------上面的宏定义展开
   // static pthread_once_t _routine_once_res_state_wrap = PTHREAD_ONCE_INIT;              
   // static pthread_key_t _routine_key_res_state_wrap;                                    
   // static int _routine_init_res_state_wrap = 0;                                         
@@ -1033,7 +1049,7 @@ CO_ROUTINE_SPECIFIC(res_state_wrap, __co_state_wrap);
   //   }
   // };
   // static clsRoutineData_routine_res_state_wrap<res_state_wrap> __co_state_wrap;
-// FIXME: ----------------------------------------------------------------------------上面的宏定义展开
+// ----------------------------------------------------------------------------上面的宏定义展开
 
 extern "C" {
 
@@ -1059,10 +1075,16 @@ struct hostbuf_wrap {
   int host_errno;
 };
 
+/**
+ * 定义协程私有变量：hostbuf_wrap __co_hostbuf_wrap
+ */
 CO_ROUTINE_SPECIFIC(hostbuf_wrap, __co_hostbuf_wrap);
 
+/**
+ * 通过域名获取ip地址
+ */
 #if !defined(__APPLE__) && !defined(__FreeBSD__)
-struct hostent *co_gethostbyname(const char *name) {
+struct hostent* co_gethostbyname(const char* name) {
   if (!name) {
     return NULL;
   }
@@ -1072,19 +1094,19 @@ struct hostent *co_gethostbyname(const char *name) {
     __co_hostbuf_wrap->buffer = NULL;
   }
   if (!__co_hostbuf_wrap->buffer) {
-    __co_hostbuf_wrap->buffer = (char *)malloc(1024);
+    __co_hostbuf_wrap->buffer = (char*) malloc(1024);
     __co_hostbuf_wrap->iBufferSize = 1024;
   }
 
-  struct hostent *host = &__co_hostbuf_wrap->host;
-  struct hostent *result = NULL;
-  int *h_errnop = &(__co_hostbuf_wrap->host_errno);
+  struct hostent* host = &__co_hostbuf_wrap->host;
+  struct hostent* result = NULL;
+  int* h_errnop = &(__co_hostbuf_wrap->host_errno);
 
   int ret = -1;
   while (ret = gethostbyname_r(name, host, __co_hostbuf_wrap->buffer,
                                __co_hostbuf_wrap->iBufferSize, &result,
-                               h_errnop) == ERANGE &&
-               *h_errnop == NETDB_INTERNAL) {
+                               h_errnop) == ERANGE && *h_errnop == NETDB_INTERNAL) {
+
     free(__co_hostbuf_wrap->buffer);
     __co_hostbuf_wrap->iBufferSize = __co_hostbuf_wrap->iBufferSize * 2;
     __co_hostbuf_wrap->buffer = (char *)malloc(__co_hostbuf_wrap->iBufferSize);

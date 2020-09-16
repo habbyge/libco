@@ -17,11 +17,16 @@ available.
 * limitations under the License.
 */
 
+/**
+ * 基础知识：
+ * 栈帧，每个栈帧都对应着一个未运行完的函数，栈帧中保存了该函数的函数参数，返回地址和局部变量等数据，类似Java。
+ */
+
 #include "coctx.h"
 #include <stdio.h>
 #include <string.h>
 
-#define ESP 0
+#define ESP 0 // 栈指针寄存器(Extended Stack Pointer)，其内存放着一个指针，该指针永远指向当前栈帧的栈顶
 #define EIP 1
 #define EAX 2
 #define ECX 3
@@ -54,7 +59,7 @@ available.
 // | regs[7]: eax |  = esp
 enum {
   kEIP = 0,
-  kEBP = 6,
+  kEBP = 6, // EBP: 基地址指针寄存器(Extended Base Pointer)，其内存放着一个指针，该指针永远指向当前栈帧的底部
   kESP = 7,
 };
 
