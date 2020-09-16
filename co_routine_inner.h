@@ -41,21 +41,18 @@ struct stShareStack_t {
 };
 
 /**
- * 该结构表示某个协程的具体内容：
- * pfn 表示该协程对应的执行函数指针
- * ctx 存储的是当前协程的上下文，在调用 co_swap 时使用
- * cIsShareStack 是否使用协程的共享栈模式
+ * 该结构表示某个协程实例的具体内容
  */
 struct stCoRoutine_t { // 协程实例
   stCoRoutineEnv_t* env; // 协程环境(协程调度器？)
-  pfn_co_routine_t pfn;
+  pfn_co_routine_t pfn; // 表示该协程对应的执行函数指针
   void* arg;
   coctx_t ctx; // 存储的是当前协程的上下文，在调用 co_swap 时使用
 
   char cStart;
   char cEnd;
   char cIsMain; // 主协程？
-  char cEnableSysHook; // 是能系统api hook机制？
+  char cEnableSysHook; // 是能系统api hook机制
   char cIsShareStack; // 是否使用协程的共享栈模式
 
   void* pvEnv;
@@ -68,7 +65,7 @@ struct stCoRoutine_t { // 协程实例
   unsigned int save_size;
   char* save_buffer;
 
-  stCoSpec_t aSpec[1024];
+  stCoSpec_t aSpec[1024]; // 协程私有变量
 };
 
 // 1.env

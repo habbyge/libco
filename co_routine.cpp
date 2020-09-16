@@ -64,14 +64,15 @@ struct stCoEpoll_t;
  * 
  * 其中 pCallStack[0]存储的是主协程，pCallStack[1]存储的是当前正在运行的协程，在生产者与消息费者的示例中，
  * pCallStack 只会使用到前两个数组，对于挂起的协程环境是存储在事件的双向链表中，都过事件触发 机制来控制;
- * pEpoll 表示 EPOLL IO 管理器，是结合定时器或者 IO 事件来管理协程的调度的;
+ * pEpoll 表示 EPOLL IO 管理器，是结合定时器或IO事件来管理协程的调度的，这里使用kqueue()来初始化的。
  */
-// 代表一个thread中的所有协程
+// 代表一个thread中的所有协程，一个线程实例的上下文
 struct stCoRoutineEnv_t {
   stCoRoutine_t* pCallStack[128]; // 该线程内允许嵌套创建128个协程(即协程1内创建协程2, 协程2内创建协程3... 
                                   // 协程127内创建协程128. 该结构虽然是数组, 但将其作为栈来使用, 满足后进先出的特点)
-  int iCallStackSize; // 该线程内嵌套创建的协程数量, 即 pCallStack 数组中元素的数量
-  stCoEpoll_t* pEpoll; // 该线程内的epoll实例(套接字通过该结构内的epoll句柄向内核注册事件), 也用于该线程的事件循环eventloop中
+  int iCallStackSize;  // 该线程内嵌套创建的协程数量, 即 pCallStack 数组中元素的数量
+  stCoEpoll_t* pEpoll; // 该线程内的epoll实例(套接字通过该结构内的epoll句柄向内核注册事件), 
+                       // 也用于该线程的事件循环eventloop中，使用kqueue()实现
 
   // for copy stack log lastco and nextco
   stCoRoutine_t* pending_co;
@@ -297,9 +298,11 @@ struct stTimeoutItem_t;
 struct stCoEpoll_t {
   int iEpollFd; // 由 epoll_create()函数创建的epoll句柄
   static const int _EPOLL_SIZE = 1024 * 10; // 10K
+
   struct stTimeout_t* pTimeout;
   struct stTimeoutItemLink_t* pstTimeoutList;
   struct stTimeoutItemLink_t* pstActiveList;
+  
   co_epoll_res* result;
 };
 
@@ -717,6 +720,9 @@ void co_init_curr_thread_env() {
   SetEpoll(env, ev);
 }
 
+/**
+ * 获取当前线程上下文
+ */
 stCoRoutineEnv_t* co_get_curr_thread_env() { 
   return gCoEnvPerThread;
 }
@@ -978,6 +984,9 @@ struct stHookPThreadSpec_t {
   };
 };
 
+/**
+ * 获取当前协程的私有变量
+ */
 void* co_getspecific(pthread_key_t key) {
   stCoRoutine_t* co = GetCurrThreadCo();
   if (!co || co->cIsMain) {
@@ -986,12 +995,15 @@ void* co_getspecific(pthread_key_t key) {
   return co->aSpec[key].value;
 }
 
+/**
+ * 存储协程私有变量
+ */
 int co_setspecific(pthread_key_t key, const void* value) {
   stCoRoutine_t* co = GetCurrThreadCo();
   if (!co || co->cIsMain) {
     return pthread_setspecific(key, value);
   }
-  co->aSpec[key].value = (void*) value;
+  co->aSpec[key].value = (void*) value; // 存储在当前协程的私有变量中
   return 0;
 }
 
@@ -1002,6 +1014,9 @@ void co_disable_hook_sys() {
   }
 }
 
+/**
+ * 当前线程是否开启了Linux系统调用的hook机制？
+ */
 bool co_is_enable_sys_hook() {
   stCoRoutine_t* co = GetCurrThreadCo();
   return (co && co->cEnableSysHook);

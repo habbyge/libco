@@ -25,25 +25,22 @@ available.
 
 #if !defined(__APPLE__) && !defined(__FreeBSD__)
 
-int co_epoll_wait(int epfd, struct co_epoll_res *events, int maxevents,
-                  int timeout) {
+int co_epoll_wait(int epfd, struct co_epoll_res* events, int maxevents, int timeout) {
   return epoll_wait(epfd, events->events, maxevents, timeout);
 }
-int co_epoll_ctl(int epfd, int op, int fd, struct epoll_event *ev) {
+int co_epoll_ctl(int epfd, int op, int fd, struct epoll_event* ev) {
   return epoll_ctl(epfd, op, fd, ev);
 }
 int co_epoll_create(int size) { return epoll_create(size); }
 
-struct co_epoll_res *co_epoll_res_alloc(int n) {
-  struct co_epoll_res *ptr =
-      (struct co_epoll_res *)malloc(sizeof(struct co_epoll_res));
-
+struct co_epoll_res* co_epoll_res_alloc(int n) {
+  struct co_epoll_res* ptr = (struct co_epoll_res*) malloc(sizeof(struct co_epoll_res));
   ptr->size = n;
-  ptr->events = (struct epoll_event *)calloc(1, n * sizeof(struct epoll_event));
+  ptr->events = (struct epoll_event*) calloc(1, n * sizeof(struct epoll_event));
 
   return ptr;
 }
-void co_epoll_res_free(struct co_epoll_res *ptr) {
+void co_epoll_res_free(struct co_epoll_res* ptr) {
   if (!ptr)
     return;
   if (ptr->events)
@@ -57,7 +54,7 @@ private:
   static const int row_size = 1024;
   static const int col_size = 1024;
 
-  void **m_pp[1024];
+  void** m_pp[1024];
 
 public:
   clsFdMap() { 
@@ -85,7 +82,7 @@ public:
       return -__LINE__;
     }
     if (!m_pp[idx]) {
-      m_pp[idx] = (void**)calloc(1, sizeof(void*) * col_size);
+      m_pp[idx] = (void**) calloc(1, sizeof(void*) * col_size);
     }
     m_pp[idx][fd % col_size] = (void*) ptr;
     return 0;
@@ -119,7 +116,16 @@ struct kevent_pair_t {
   uint64_t u64;
 };
 
-int co_epoll_create(int size) { 
+/**
+ * kqueue与epoll非常相似，最初是2000年Jonathan Lemon在FreeBSD系统上开发的一个高性能的事件通知接口
+ * 注册一批socket描述符到 kqueue 以后，当其中的描述符状态发生变化时，kqueue 将一次性通知应用程序哪些
+ * 描述符可读、可写或出错了
+ * kqueue的接口包括 kqueue()、kevent() 两个系统调用和 struct kevent 结构，在event.h头文件中：
+ * 1、kqueue() 生成一个内核事件队列，返回该队列的文件描述符。其它 API 通过该描述符操作这个 kqueue
+ * 2、kevent() 提供向内核注册 / 反注册事件和返回就绪事件或错误事件
+ * 3、struct kevent 就是kevent()操作的最基本的事件结构
+ */
+int co_epoll_create(int size) {
   // 为什么epoll和kqueue可以用基于事件的方式，单线程的实现并发？
   // kqueue() - 生成一个内核事件队列，返回该队列的文件描述符。其它 API 通过该描述符操作这个 kqueue。
   // kevent() - 提供向内核注册/反注册事件和返回就绪事件或错误事件

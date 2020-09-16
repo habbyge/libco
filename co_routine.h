@@ -41,8 +41,8 @@ struct stCoRoutineAttr_t {
 // 是GCC特有的语法。类似于在目标结构体前写 #pragma pack(1)，即按1字节对其。
 
 struct stCoEpoll_t;
-typedef int (*pfn_co_eventloop_t)(void*);
-typedef void* (*pfn_co_routine_t)(void*);
+typedef int (*pfn_co_eventloop_t) (void*);
+typedef void* (*pfn_co_routine_t) (void*);
 
 // 2.co_routine
 
