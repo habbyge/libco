@@ -253,7 +253,11 @@ void inline Join(TLink* apLink, TLink* apOther) {
 }
 
 /////////////////for copy stack //////////////////////////
-stStackMem_t* co_alloc_stackmem(unsigned int stack_size) {
+/**
+ * 为协程创建一个栈
+ * @param stack_size 栈大小
+ */
+stStackMem_t* co_alloc_stackmem(unsigned int stack_size) { // TODO: 这里继续......
   stStackMem_t* stack_mem = (stStackMem_t*) malloc(sizeof(stStackMem_t));
   stack_mem->occupy_co = NULL;
   stack_mem->stack_size = stack_size;
@@ -262,6 +266,11 @@ stStackMem_t* co_alloc_stackmem(unsigned int stack_size) {
   return stack_mem;
 }
 
+/**
+ * 初始化当前线程(中所有的协程)的共享栈(当前线程中的所有协程共享的栈)
+ * @param count      预分配的 count 个协程栈
+ * @param stack_size 每个协程栈大小
+ */
 stShareStack_t* co_alloc_sharestack(int count, int stack_size) {
   stShareStack_t* share_stack = (stShareStack_t*) malloc(sizeof(stShareStack_t));
   share_stack->alloc_idx = 0;
@@ -586,6 +595,32 @@ void save_stack_buffer(stCoRoutine_t* occupy_co) {
 
 /**
  * 切换协程上下文
+ * 协程的切换都是通过内部调用co_swap()函数来完成，具体的切换过程分两种情况：（假设协程 co_from 切换到 co_to）
+ * 
+ * 如果是独享栈模式：
+ * 1、将协程 co_from 当前的 CPU 寄存器信息全部存入 co_from 中。
+ * 2、将协程 co_to 的寄存器信息赋值到 CPU 寄存器内。
+ * 3、当执行下一行代码的时候，已经切换到了 co_to 协程，栈帧也指向了 co_to 的栈帧空间了。
+ * 
+ * 如果是共享栈模式：
+ * libco对共享栈做了个优化，可以申请多个共享栈循环使用，当目标协程所记录的共享栈没有被其它协程占用的时候，整个切换过程和独享栈模式一致。否则就是下面的流程。
+ * 1、将协程 co_from 的栈空间内容从共享栈拷贝到 co_from 的 save_buffer 中。
+ * 2、将协程 co_to 的 save_buffer 中的栈内容拷贝到共享栈中。
+ * 3、将协程 co_from 当前的 CPU 寄存器信息全部存入 co_from 中。
+ * 4、将协程 co_to 的寄存器信息赋值到 CPU 寄存器内。
+ * 5、当执行下一行代码的时候，已经切换到了 co_to 协程，栈帧一直指向共享栈间。
+ * 其中寄存器的拷贝切换都是通过 coctx_swap 汇编实现。
+ * 
+ * libco两种栈模式的优缺点：
+ * 独享栈：
+ * 优点：协程切换的时候，只需要切换寄存器数据，效率高。
+ * 缺点：1、每个协程独占128K的固定空间，协程池足够大的时候，内存浪费比较大；
+ *      2、容易发生堆栈溢出。
+ * 共享栈：
+ * 优点：可以创建多个足够大的共享栈空间，很大程度上缓解了内存占用问题，也减小了栈溢出的几率。
+ * 缺点：协程切换的时候，可能会多两次栈内容拷贝，拉低了性能。
+ * 
+ * 一般在游戏项目中，服务器的效率是优先考虑的，所以一般会选择 stackfull 独享栈模式
  */
 void co_swap(stCoRoutine_t* curr, stCoRoutine_t* pending_co) {
   stCoRoutineEnv_t* env = co_get_curr_thread_env();

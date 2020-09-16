@@ -21,20 +21,22 @@ available.
 
 #include "co_routine.h"
 #include "coctx.h"
+
 struct stCoRoutineEnv_t;
+
 struct stCoSpec_t {
   void* value;
 };
 
 /**
  * 栈空间
+ * 栈帧的理解类似Java的栈帧
  */
 struct stStackMem_t {
   stCoRoutine_t* occupy_co; // 独占该栈空间的协程
-  int stack_size;
-
-  char* stack_bp; // stack_buffer + stack_size
-  char* stack_buffer;
+  int stack_size; // 栈大小
+  char* stack_bp; // stack_buffer + stack_size，指向栈顶
+  char* stack_buffer; // 栈空间
 };
 
 /**
@@ -43,9 +45,9 @@ struct stStackMem_t {
  */
 struct stShareStack_t {
   unsigned int alloc_idx;
-  int stack_size;
-  int count;
-  stStackMem_t** stack_array;
+  int stack_size; // 每个协程栈大小
+  int count; // stack_array条数，协程栈个数
+  stStackMem_t** stack_array; // 协程栈数组
 };
 
 /**
@@ -55,8 +57,9 @@ struct stShareStack_t {
  */
 struct stCoRoutine_t {
   stCoRoutineEnv_t* env; // 协程环境(协程调度器？)
+
   pfn_co_routine_t pfn; // 表示该协程对应的执行函数指针
-  void* arg;
+  void* arg; // 函数参数
 
   // 保存当前协程执行时的所有寄存器
   coctx_t ctx; // 存储的是当前协程的上下文，在调用 co_swap 时使用
@@ -66,7 +69,7 @@ struct stCoRoutine_t {
   
   char cIsMain; // 主协程？
   
-  char cEnableSysHook; // 是能系统api hook机制
+  char cEnableSysHook; // 是能系统api hook机制 TODO: 这里继续......
 
   // libco有两种栈管理方案：stackless(共享栈模式) and stackfull(独享站模式)
   char cIsShareStack; // 是否使用协程的共享栈模式(stackless)
@@ -81,7 +84,10 @@ struct stCoRoutine_t {
   char* stack_sp;
 
   // 如果是共享栈模式，协程切换的时候，用来拷贝存储当前共享栈内容的 save_buffer，长度为实际的共享栈使用长度。
-  char* save_buffer;
+  //【这里的理解是：一个程序(或进程中的线程)启动开始执行后，必须是一个函数，然后是函数里调用其他函数，以此类推，
+  // 组成的调用链来运行程序的，也就是说真正的代码逻辑流的执行，就是函数调用链路的执行。
+  // 这里是：当前协程发生切换时，把共享栈中的属于该协程的栈帧存储在这里
+  char* save_buffer; // [cIsShareStack == 1] 表示存储在共享栈模下的内容
   unsigned int save_size;
 
   stCoSpec_t aSpec[1024]; // 协程私有变量

@@ -30,8 +30,8 @@ struct stCoRoutine_t;
 struct stShareStack_t;
 
 struct stCoRoutineAttr_t {
-  int stack_size;
-  stShareStack_t* share_stack;
+  int stack_size; // 所有协程的共享栈条数 128K
+  stShareStack_t* share_stack; // 所有协程的共享栈
 
   stCoRoutineAttr_t() {
     stack_size = 128 * 1024; // 独享栈模式，每个创建的协程都会在堆上分配一块默认128K的内存作为自己的栈帧空间
@@ -50,8 +50,12 @@ typedef void* (*pfn_co_routine_t) (void*);
 int co_create(stCoRoutine_t** co, const stCoRoutineAttr_t* attr, void* (*routine) (void*), void* arg);
 // 唤醒协程，开始执行
 void co_resume(stCoRoutine_t* co);
+// 协程切换：两种情况发生切换：
+// 1、协程通过调用co_yield()挂起的时候，会切换到唤醒当前协程的协程继续执行
+// 2、协程内通过 co_resume 唤醒另外一个协程的时候，会直接切换到新唤醒的协程
 void co_yield(stCoRoutine_t* co);
 void co_yield_ct(); // ct = current thread
+
 // 协程生命周期结束：主动调用co_release()，或者co_create()指定的入口函数执行完毕返回，协程结束。
 void co_release(stCoRoutine_t* co);
 void co_reset(stCoRoutine_t* co);
