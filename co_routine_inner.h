@@ -29,6 +29,7 @@ struct stCoSpec_t {
 struct stStackMem_t {
   stCoRoutine_t* occupy_co;
   int stack_size;
+  
   char* stack_bp; // stack_buffer + stack_size
   char* stack_buffer;
 };
@@ -41,17 +42,20 @@ struct stShareStack_t {
 };
 
 /**
- * 该结构表示某个协程实例的具体内容
+ * 该结构表示某个协程实例的具体内容，创建协程的时候会生成一个该结构体，所有协程的生命周期都是围绕这个结构体来的。
  */
 struct stCoRoutine_t { // 协程实例
   stCoRoutineEnv_t* env; // 协程环境(协程调度器？)
   pfn_co_routine_t pfn; // 表示该协程对应的执行函数指针
   void* arg;
+
   coctx_t ctx; // 存储的是当前协程的上下文，在调用 co_swap 时使用
 
   char cStart;
   char cEnd;
+  
   char cIsMain; // 主协程？
+  
   char cEnableSysHook; // 是能系统api hook机制
   char cIsShareStack; // 是否使用协程的共享栈模式
 
