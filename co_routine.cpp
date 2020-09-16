@@ -884,7 +884,7 @@ int co_poll_inner(stCoEpoll_t* ctx,
   }
   memset(arg.pPollItems, 0, nfds * sizeof(stPollItem_t));
 
-  arg.pfnProcess = OnPollProcessEvent;
+  arg.pfnProcess = OnPollProcessEvent; // co_resume
   arg.pArg = GetCurrCo(co_get_curr_thread_env()); // stCoRoutine_t 当前协程实例
 
   // 2. add epoll
