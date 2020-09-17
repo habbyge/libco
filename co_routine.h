@@ -27,6 +27,21 @@ available.
 /**
  * libco地址：https://github.com/habbyge/libco
  * 
+ * libco通过仅有的几个函数接口 co_create/co_resume/co_yield 再配合 co_poll，可以支持同步或者异步的写法，
+ * 如线程库一样轻松。同时库里面提供了socket族函数的hook，使得后台逻辑服务几乎不用修改逻辑代码就可以完成异步化改造。
+ * (hook后，对对应的socket返回的fd设置为NONBLOCK)
+ * 
+ * - libco的特性
+ * 1、无需侵入业务逻辑，把多进程、多线程服务改造成协程服务，并发能力得到百倍提升;
+ * 2、支持CGI框架，轻松构建web服务(New);
+ * 3、支持gethostbyname、mysqlclient、ssl等常用第三库(New);
+ * 4、可选的共享栈模式，单机轻松接入千万连接(New);
+ * 5、完善简洁的协程编程接口
+ * 6、类pthread接口设计，通过co_create、co_resume等简单清晰接口即可完成协程的创建与恢复；
+ * 7、__thread的协程私有变量、协程间通信的协程信号量co_signal (New);
+ * 8、语言级别的lambda实现，结合协程原地编写并执行后台异步任务 (New);
+ * 9、基于epoll/kqueue实现的小而轻的网络框架，基于时间轮盘实现的高性能定时器;
+ * 
  * libco模块划分(按协程三要素划分)：
  * 1、调度器：co_epoll
  * 2、上下文切换：coctx
