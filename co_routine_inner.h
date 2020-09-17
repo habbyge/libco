@@ -76,7 +76,7 @@ struct stCoRoutine_t {
 
   void* pvEnv;
 
-  // char sRunStack[ 1024 * 128 ];
+  // char sRunStack[1024 * 128];
   // 如果是独享栈模式，分配在堆中的一块作为当前协程栈帧的内存 stack_mem，这块内存的默认大小为 128K。
   stStackMem_t* stack_mem;
 
