@@ -30,14 +30,14 @@ available.
 #define EIP 1
 #define EAX 2
 #define ECX 3
-// -----------
-#define RSP 0
-#define RIP 1
-#define RBX 2
-#define RDI 3
-#define RSI 4
+// ----------- x86-64
+#define RSP 0 // 表示栈顶寄存器
+#define RIP 1 // 指向汇编代码栈的指令地址，表示即将要执行的指令
+#define RBX 2 // 为函数返回值的存储寄存器
+#define RDI 3 // 通常存储函数的第1个参数地址
+#define RSI 4 // 通常存储函数的第2个参数地址
 
-#define RBP 5
+#define RBP 5 // 表示栈底寄存器
 #define R12 6
 #define R13 7
 #define R14 8
@@ -72,8 +72,8 @@ enum {
 //    | regs[4]: r9  |
 //    | regs[5]: r8  |
 //    | regs[6]: rbp |
-//    | regs[7]: rdi |
-//    | regs[8]: rsi |
+//    | regs[7]: rdi | // 通常存储函数的第1个参数地址
+//    | regs[8]: rsi | // 通常存储函数的第2个参数地址
 //    | regs[9]: ret |  //ret func addr
 //    | regs[10]: rdx |
 //    | regs[11]: rcx |
@@ -98,17 +98,17 @@ int coctx_init(coctx_t* ctx) {
 int coctx_make(coctx_t* ctx, coctx_pfn_t pfn, const void* s, const void* s1) {
   // make room for coctx_param
   char* sp = ctx->ss_sp + ctx->ss_size - sizeof(coctx_param_t);
-  sp = (char*)((unsigned long)sp & -16L);
+  sp = (char*) ((unsigned long) sp & -16L);
 
-  coctx_param_t* param = (coctx_param_t*)sp;
-  void** ret_addr = (void**)(sp - sizeof(void*) * 2);
-  *ret_addr = (void*)pfn;
+  coctx_param_t* param = (coctx_param_t*) sp;
+  void** ret_addr = (void**) (sp - sizeof(void*) * 2);
+  *ret_addr = (void*) pfn;
   param->s1 = s;
   param->s2 = s1;
 
   memset(ctx->regs, 0, sizeof(ctx->regs));
 
-  ctx->regs[kESP] = (char*)(sp) - sizeof(void*) * 2;
+  ctx->regs[kESP] = (char*) (sp) - sizeof(void*) * 2;
   return 0;
 }
 #elif defined(__x86_64__)

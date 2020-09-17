@@ -24,6 +24,13 @@ available.
 #include <stdint.h>
 #include <sys/poll.h>
 
+/**
+ * libco模块划分(按协程三要素划分)：
+ * 1、调度器：co_epoll
+ * 2、上下文切换：coctx
+ * 3、协程API：co_routine
+ */
+
 // 1.struct
 
 struct stCoRoutine_t;
@@ -48,10 +55,12 @@ typedef void* (*pfn_co_routine_t) (void*);
 // 2.co_routine
 // 协程生命周期开始：co_create()指定协程入口函数并创建协程，co_resume 将其唤醒，开始执行当前协程。
 int co_create(stCoRoutine_t** co, const stCoRoutineAttr_t* attr, void* (*routine) (void*), void* arg);
-// 唤醒协程，开始执行
+
+// 唤醒协程，开始执行，协程的切换都是通过内部调用 co_swap() 函数来完成
 void co_resume(stCoRoutine_t* co);
 void co_yield(stCoRoutine_t* co);
 void co_yield_ct(); // ct = current thread
+
 // 协程生命周期结束：主动调用co_release()，或者co_create()指定的入口函数执行完毕返回，协程结束。
 void co_release(stCoRoutine_t* co);
 void co_reset(stCoRoutine_t* co);
