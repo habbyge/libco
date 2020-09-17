@@ -34,8 +34,12 @@ struct stEnv_t {
   queue<stTask_t*> task_queue; // 任务队列
 };
 
+/**
+ * @param args 传入的是 stEnv_t
+ */
 void* Producer(void* args) {
   co_enable_hook_sys();
+  
   stEnv_t* env = (stEnv_t*) args;
   int id = 0;
   while (true) {
@@ -48,6 +52,10 @@ void* Producer(void* args) {
   }
   return NULL;
 }
+
+/**
+ * @param args 传入的是 stEnv_t
+ */
 void* Consumer(void* args) {
   co_enable_hook_sys();
   
@@ -69,14 +77,17 @@ int main() {
   stEnv_t* env = new stEnv_t;
   env->cond = co_cond_alloc();
 
+  // 消费者协程
   stCoRoutine_t* consumer_routine;
   co_create(&consumer_routine, NULL, Consumer, env);
   co_resume(consumer_routine);
 
+  // 生产者协程
   stCoRoutine_t* producer_routine;
   co_create(&producer_routine, NULL, Producer, env);
   co_resume(producer_routine);
 
+  // 开启事件循环
   co_eventloop(co_get_epoll_ct(), NULL, NULL);
   return 0;
 }
