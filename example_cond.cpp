@@ -30,8 +30,8 @@ struct stTask_t {
 };
 
 struct stEnv_t {
-  stCoCond_t* cond;
-  queue<stTask_t*> task_queue;
+  stCoCond_t* cond; // 条件变量
+  queue<stTask_t*> task_queue; // 任务队列
 };
 
 void* Producer(void* args) {
