@@ -567,6 +567,10 @@ void co_reset(stCoRoutine_t* co) {
     co->stack_mem->occupy_co = NULL;
 }
 
+/**
+ * 让出当前协程，执行上一条协程
+ * @param env 当前线程上下文，例如：正在运行的协程队列
+ */
 void co_yield_env(stCoRoutineEnv_t* env) {
   stCoRoutine_t* last = env->pCallStack[env->iCallStackSize - 2];
   stCoRoutine_t* curr = env->pCallStack[env->iCallStackSize - 1];
@@ -601,9 +605,10 @@ void save_stack_buffer(stCoRoutine_t* occupy_co) {
  * 协程的切换都是通过内部调用co_swap()函数来完成，具体的切换过程分两种情况：（假设协程 co_from 切换到 co_to）
  * 
  * - 如果是独享栈模式：
- * 1、将协程 co_from 当前的 CPU 寄存器信息全部存入 co_from 中。
+ * 1、将协程 co_from 当前的 CPU 寄存器信息全部存入 co_from 中(具体字段是：stCoRoutine_t.ctx字段)。
  * 2、将协程 co_to 的寄存器信息赋值到 CPU 寄存器内。
  * 3、当执行下一行代码的时候，已经切换到了 co_to 协程，栈帧也指向了 co_to 的栈帧空间了。
+ * 注意：独享栈模式特点是：性能好(无需copy栈)；但有oom风险(每个协程一个独立的128K的栈在heap上分配)
  * 
  * - 如果是共享栈模式：
  * libco对共享栈做了个优化，可以申请多个共享栈循环使用，当目标协程所记录的共享栈没有被其它协程占用的时候，整个切换过程和独享栈模式一致。否则就是下面的流程。
@@ -612,7 +617,9 @@ void save_stack_buffer(stCoRoutine_t* occupy_co) {
  * 3、将协程 co_from 当前的 CPU 寄存器信息全部存入 co_from 的 ctx 中。
  * 4、将协程 co_to 的寄存器信息赋值到 CPU 寄存器内。
  * 5、当执行下一行代码的时候，已经切换到了 co_to 协程，栈帧一直指向共享栈间。
- * 其中寄存器的拷贝切换都是通过 coctx_swap 汇编实现。
+ * 注意：TODO: 这里继续......
+ * 
+ * - 其中寄存器的拷贝切换都是通过 coctx_swap 汇编实现。
  * 
  * - libco两种栈模式的优缺点：
  * 独享栈：

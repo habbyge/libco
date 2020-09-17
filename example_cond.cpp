@@ -50,6 +50,7 @@ void* Producer(void* args) {
 }
 void* Consumer(void* args) {
   co_enable_hook_sys();
+  
   stEnv_t* env = (stEnv_t*) args;
   while (true) {
     if (env->task_queue.empty()) {

@@ -25,6 +25,8 @@ available.
 #include <sys/poll.h>
 
 /**
+ * libco地址：https://github.com/habbyge/libco
+ * 
  * libco模块划分(按协程三要素划分)：
  * 1、调度器：co_epoll
  * 2、上下文切换：coctx

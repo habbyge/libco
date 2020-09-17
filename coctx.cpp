@@ -120,12 +120,10 @@ int coctx_make(coctx_t* ctx, coctx_pfn_t pfn, const void* s, const void* s1) {
   void** ret_addr = (void**) (sp);
   *ret_addr = (void*) pfn;
 
-  ctx->regs[kRSP] = sp;
-
-  ctx->regs[kRETAddr] = (char*) pfn;
-
-  ctx->regs[kRDI] = (char*) s;
-  ctx->regs[kRSI] = (char*) s1;
+  ctx->regs[kRSP] = sp; // 栈顶寄存器，存储在第13索引处(寄存器数组中的最后一个位置)
+  ctx->regs[kRETAddr] = (char*) pfn; // 函数返回地址存储在第9索引处
+  ctx->regs[kRDI] = (char*) s; // 通常存储函数的第1个参数地址
+  ctx->regs[kRSI] = (char*) s1; // 通常存储函数的第2个参数地址
   return 0;
 }
 

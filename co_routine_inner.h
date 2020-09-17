@@ -69,24 +69,26 @@ struct stCoRoutine_t {
   
   char cIsMain; // 主协程？
   
-  char cEnableSysHook; // 是能系统api hook机制 TODO: 这里继续......
+  char cEnableSysHook; // 是否hook系统api，针对当前协程
 
   // libco有两种栈管理方案：stackless(共享栈模式) and stackfull(独享站模式)
   char cIsShareStack; // 是否使用协程的共享栈模式(stackless)
 
-  void* pvEnv;
+  void* pvEnv; // 协程环境变量：stCoSysEnvArr_t
 
   // char sRunStack[1024 * 128];
   // 如果是独享栈模式，分配在堆中的一块作为当前协程栈帧的内存 stack_mem，这块内存的默认大小为 128K。
+  // 独享栈在协程切换时，无需copy栈数据(因为是独享的)，只需要copy寄存器值即可，因此：独享栈性能好、但容易oom
   stStackMem_t* stack_mem;
 
   // save satck buffer while confilct on same stack_buffer;
   char* stack_sp;
 
   // 如果是共享栈模式，协程切换的时候，用来拷贝存储当前共享栈内容的 save_buffer，长度为实际的共享栈使用长度。
+  // 共享栈模式才需要copy栈(还需寄存器)，独享栈无需copy栈，只需要把寄存器值存入ctx字段即可
   //【这里的理解是：一个程序(或进程中的线程)启动开始执行后，必须是一个函数，然后是函数里调用其他函数，以此类推，
   // 组成的调用链来运行程序的，也就是说真正的代码逻辑流的执行，就是函数调用链路的执行。
-  // 这里是：当前协程发生切换时，把共享栈中的属于该协程的栈帧存储在这里
+  // 这里是：当前协程发生切换时，把共享栈中的属于该协程的栈帧存储在这里，因此共享栈不容易oom，但性能差(2次copy)
   char* save_buffer; // [cIsShareStack == 1] 表示存储在共享栈模下的内容
   unsigned int save_size;
 

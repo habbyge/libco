@@ -54,7 +54,7 @@ struct coctx_t {
 #if defined(__i386__)
   void *regs[8];
 #else
-  void* regs[14];
+  void* regs[14]; // 最多存储14个寄存器
 #endif
   size_t ss_size; // 栈大小
   char* ss_sp; // 栈顶指针 
