@@ -652,6 +652,9 @@ void save_stack_buffer(stCoRoutine_t* occupy_co) {
  * - libco的使用
  * libco的接口封装很简单，一般使用只涉及4个接口：co_create 创建一个协程；co_yield 挂起一个协程；co_resume 唤醒一个协程；co_release 销毁一个协程。
  * 具体用法可以参考官方用例。
+ * 
+ * @param curr 当前协程，co_from
+ * @param pending_co 下一个协程 co_to
  */
 void co_swap(stCoRoutine_t* curr, stCoRoutine_t* pending_co) {
   stCoRoutineEnv_t* env = co_get_curr_thread_env(); // 当前thread中的所有协程数据(状态、信息)
