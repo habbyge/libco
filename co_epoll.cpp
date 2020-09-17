@@ -18,6 +18,7 @@ available.
 */
 
 #include "co_epoll.h"
+
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,7 +50,8 @@ void co_epoll_res_free(struct co_epoll_res* ptr) {
 }
 
 #else
-class clsFdMap { // million of fd , 1024 * 1024
+
+class clsFdMap { // million of fd, 1024 * 1024, 1M
 private:
   static const int row_size = 1024;
   static const int col_size = 1024;
@@ -57,8 +59,8 @@ private:
   void** m_pp[1024];
 
 public:
-  clsFdMap() { 
-    memset(m_pp, 0, sizeof(m_pp)); 
+  clsFdMap() {
+    memset(m_pp, 0, sizeof(m_pp));
   }
 
   ~clsFdMap() {
@@ -133,7 +135,7 @@ int co_epoll_create(int size) {
   // kqueue() - 生成一个内核事件队列，返回该队列的文件描述符。其它 API 通过该描述符操作这个 kqueue。
   // kevent() - 提供向内核注册/反注册事件和返回就绪事件或错误事件
   // struct kevent 就是kevent()操作的最基本的事件结构，在一个 kqueue 中，{ident, filter} 确定一个唯一的事件：
-  // 在 kevent 返回时，将读写缓冲区的可读字节数或可写空间大小告诉应用程序。基于这个特性，使用 kqueue 的应用一般不使用非阻塞IO
+  // 在 kevent 返回时，将读/写缓冲区的可读字节数/可写空间大小告诉应用程序。基于这个特性，使用 kqueue 的应用一般不使用非阻塞IO
   return kqueue(); 
 }
 

@@ -68,15 +68,18 @@ struct stCoEpoll_t;
  */
 // 代表一个thread中的所有协程，一个线程实例的上下文
 struct stCoRoutineEnv_t {
+  // 协程调用链
   stCoRoutine_t* pCallStack[128]; // 该线程内允许嵌套创建128个协程(即协程1内创建协程2, 协程2内创建协程3... 
                                   // 协程127内创建协程128. 该结构虽然是数组, 但将其作为栈来使用, 满足后进先出的特点)
   int iCallStackSize;  // 该线程内嵌套创建的协程数量, 即 pCallStack 数组中元素的数量
+
+  // 协程调度器
   stCoEpoll_t* pEpoll; // 该线程内的epoll实例(套接字通过该结构内的epoll句柄向内核注册事件), 
                        // 也用于该线程的事件循环eventloop中，使用kqueue()实现
 
   // for copy stack log lastco and nextco
-  stCoRoutine_t* pending_co;
-  stCoRoutine_t* occupy_co; // occupy占据、占有
+  stCoRoutine_t* pending_co; // 挂起的协程
+  stCoRoutine_t* occupy_co;  // 当前协程(占据)
 };
 
 // int socket(int domain, int type, int protocol);
@@ -629,10 +632,10 @@ void co_swap(stCoRoutine_t* curr, stCoRoutine_t* pending_co) {
   char c;
   curr->stack_sp = &c;
 
-  if (!pending_co->cIsShareStack) {
+  if (!pending_co->cIsShareStack) { // 独享栈模式
     env->pending_co = NULL;
     env->occupy_co = NULL;
-  } else {
+  } else { // 共享栈模式
     env->pending_co = pending_co;
     // get last occupy co on the same stack mem
     stCoRoutine_t* occupy_co = pending_co->stack_mem->occupy_co;
