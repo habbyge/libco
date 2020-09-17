@@ -126,6 +126,9 @@ struct kevent_pair_t {
  * 3、struct kevent 就是kevent()操作的最基本的事件结构
  */
 int co_epoll_create(int size) {
+  // kqueue 是一种可扩展的事件通知接口，kqueue在内核与用户空间之间充当输入输出事件的管线，因此在
+  // 事件循环的迭代中，进行一次 kevent(2) 系统调用不仅可以接收未决事件，还可以修改事件过滤器
+
   // 为什么epoll和kqueue可以用基于事件的方式，单线程的实现并发？
   // kqueue() - 生成一个内核事件队列，返回该队列的文件描述符。其它 API 通过该描述符操作这个 kqueue。
   // kevent() - 提供向内核注册/反注册事件和返回就绪事件或错误事件
