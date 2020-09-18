@@ -463,9 +463,9 @@ struct stCoRoutine_t* co_create_env(stCoRoutineEnv_t* env,
   if (attr) {
     memcpy(&at, attr, sizeof(at));
   }
-  if (at.stack_size <= 0) {
+  if (at.stack_size <= 0) { // 128k
     at.stack_size = 128 * 1024;
-  } else if (at.stack_size > 1024 * 1024 * 8) {
+  } else if (at.stack_size > 1024 * 1024 * 8) { // 8M
     at.stack_size = 1024 * 1024 * 8;
   }
 
@@ -483,13 +483,13 @@ struct stCoRoutine_t* co_create_env(stCoRoutineEnv_t* env,
   lp->arg = arg;
 
   stStackMem_t* stack_mem = NULL;
-  if (at.share_stack) {
+  if (at.share_stack) { // 共享栈模式
     stack_mem = co_get_stackmem(at.share_stack);
     at.stack_size = at.share_stack->stack_size;
-  } else {
+  } else { // 独享栈模式
     stack_mem = co_alloc_stackmem(at.stack_size);
   }
-  lp->stack_mem = stack_mem;
+  lp->stack_mem = stack_mem; // 独享栈
 
   lp->ctx.ss_sp = stack_mem->stack_buffer;
   lp->ctx.ss_size = at.stack_size;

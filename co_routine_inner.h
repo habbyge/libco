@@ -82,7 +82,7 @@ struct stCoRoutine_t {
   // char sRunStack[1024 * 128];
   // 如果是独享栈模式，分配在堆中的一块作为当前协程栈帧的内存 stack_mem，这块内存的默认大小为 128K。
   // 独享栈在协程切换时，无需copy栈数据(因为是独享的)，只需要copy寄存器值即可，因此：独享栈性能好、但容易oom
-  stStackMem_t* stack_mem;
+  stStackMem_t* stack_mem; // 独享栈
 
   // save satck buffer while confilct on same stack_buffer;
   char* stack_sp;
