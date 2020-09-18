@@ -24,6 +24,9 @@ available.
 
 struct stCoRoutineEnv_t;
 
+/**
+ * 表示协程私有变量的类型
+ */
 struct stCoSpec_t {
   void* value;
 };

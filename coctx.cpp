@@ -27,7 +27,7 @@ available.
 #include <string.h>
 
 #define ESP 0 // 栈指针寄存器(Extended Stack Pointer)，其内存放着一个指针，该指针永远指向当前栈帧的栈顶
-#define EIP 1
+#define EIP 1 // 指向汇编代码栈的指令地址，表示即将要执行的指令，作为返回地址
 #define EAX 2
 #define ECX 3
 // ----------- x86-64
@@ -88,8 +88,13 @@ enum {
 
 // 64 bit
 extern "C" {
-  extern void coctx_swap(coctx_t*, coctx_t*) asm("coctx_swap");
+  /**
+   * 第一个参数是当前正在执行的协程的上下文
+   * 第二个参数是要切换到的目的协程的上下文
+   */
+  extern void coctx_swap(coctx_t*, coctx_t*) asm("coctx_swap"); // libco的协程切换 coctx_swap()
 };
+
 #if defined(__i386__)
 int coctx_init(coctx_t* ctx) {
   memset(ctx, 0, sizeof(*ctx));

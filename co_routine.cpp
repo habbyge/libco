@@ -453,7 +453,7 @@ static int CoRoutineFunc(stCoRoutine_t* co, void*) {
  * @param env - (input) 当前线程环境,用于初始化协程存储结构stCoRoutine_t
  * @param pfn - (input) 协程函数,用于初始化协程存储结构stCoRoutine_t
  * @param arg - (input) 协程函数的参数,用于初始化协程存储结构stCoRoutine_t
- * @return stCoRoutine_t类型的指针
+ * @return stCoRoutine_t类型的指针，返回一个协程对象实例
  */
 struct stCoRoutine_t* co_create_env(stCoRoutineEnv_t* env,
                                     const stCoRoutineAttr_t* attr,
@@ -670,8 +670,7 @@ void save_stack_buffer(stCoRoutine_t* occupy_co) {
  * co_create 创建一个协程；co_yield 挂起一个协程；co_resume 唤醒一个协程；co_release 销毁一个协程。
  * 具体用法可以参考官方用例。
  * 
- * - libco在使用的时候，可能需要关注的细节:
- * co_routine.cpp中，
+ * 函数切换时需要关心的仅仅是：函数的栈帧 + 寄存器
  * 
  * @param curr 当前协程，co_from
  * @param pending_co 下一个协程 co_to
@@ -810,7 +809,7 @@ void co_init_curr_thread_env() {
 }
 
 /**
- * 获取当前线程上下文
+ * 获取当前线程上下文，其中包括：该线程中的所有协程调用栈(栈帧)、epoll等
  */
 stCoRoutineEnv_t* co_get_curr_thread_env() { 
   return gCoEnvPerThread;
