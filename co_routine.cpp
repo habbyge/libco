@@ -44,7 +44,17 @@ available.
 // 腾讯的libco使用了hook技术，做到了在遇到阻塞IO时自动切换协程，（由事件循环co_eventloop检测的）阻塞IO完成时恢复协程，
 // 简化异步回调为相对同步方式的功能。其没有使用显示的调度器来管理所有协程（保存协程的相关数据），在协程切换及恢复之间主要
 // 依靠epoll_event.data.ptr来传递恢复协程所需的数据。
-
+// 基本内联汇编的格式非常直接了当。它的基本格式为：asm("汇编代码")，示例：
+// asm("movl %ecx %eax");      # 将 ecx 寄存器的内容移至 eax
+// __asm__("movb %bh (%eax)"); # 将 bh 的一个字节数据 移至 eax 寄存器指向的内存,
+// 你可能注意到了这里我使用了 "asm" 和 "__asm__"。这两者都是有效的。如果关键词 "asm" 和我们程序的一些标识符冲突了，
+// 我们可以使用 "__asm__"。如果我们的指令多于一条，我们可以每个一行，并用双引号圈起，同时为每条指令添加 ’/n’ 和 ’/t’ 
+// 后缀。这是因为 gcc 将每一条当作字符串发送给as（GAS）（LCTT 译注： GAS 即 GNU 汇编器），并且通过使用换行符/制表符
+// 发送正确格式化后的行给汇编器，示例：
+// __asm__ ("movl %eax, %ebx/n/t"
+//         "movl $56, %esi/n/t"
+//         "movl %ecx, $label(%edx,%ebx,$4)/n/t"
+//         "movb %ah, (%ebx)");
 extern "C" {
   extern void coctx_swap(coctx_t*, coctx_t*) asm("coctx_swap");
 };
@@ -699,7 +709,7 @@ void co_swap(stCoRoutine_t* curr, stCoRoutine_t* pending_co) {
   }
 
   // FIXME: swap context 切换协程上下文
-  coctx_swap(&(curr->ctx), &(pending_co->ctx));
+  coctx_swap(&(curr->ctx), &(pending_co->ctx)); // TODO: 这里需要重新分析
 
   // stack buffer may be overwrite, so get again;
   stCoRoutineEnv_t* curr_env = co_get_curr_thread_env();

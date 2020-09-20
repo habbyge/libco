@@ -19,6 +19,12 @@
 # GNU汇编采用 AT&T 语法，所以其中的源和目的操作数和 Intel 文档中给出的顺序是相反的，即：
 # movx source, destination
 # 立即数的语法是：$立即数，例如: movl $2, $edi 把32bit立即数2，传递给寄存器EDI
+# 寄存器名称有 "%" 前缀，即如果必须使用 "eax"，它应该用作 "%eax"
+# 立即数以 "$" 为前缀。静态 "C" 变量也使用 "$" 前缀。16进制常量使用前缀 "0x"。所以，对
+# 于十六进制，我们首先看到一个 "$"，然后是 "0x"，最后才是常量。
+# 操作码后缀 ’b’ 、’w’、’l’ 分别指明了字节（8位）、字（16位）、长型（32位）存储器引用。
+# 基址寄存器包含在小括号"()"中，间接内存引用为"section:disp(base, index, scale)"。
+# 
 
 .globl coctx_swap
 #if !defined( __APPLE__ )
@@ -52,14 +58,15 @@ coctx_swap: # 存储当前协程函数的寄存器到内存中；加载下一个
 # GDT和LDT
 # 前者是全局描述符表，位置由GDTR寄存器确定，后者是局部描述符表，位置由LDTR寄存器确定，具体使用哪一个，取决于段选择码中的TI位。
 #if defined(__i386__)
-  movl 4(%esp), %eax    # 当前栈帧顶寄存器ESP指向的地址+4，加载到EAX寄存器中
+  # 当前栈帧顶寄存器ESP指向的地址+4对应的内容，加载到EAX寄存器中，即：下一个函数的栈帧首地址存入EAX存入寄存器中
+  movl 4(%esp), %eax    
   movl %esp,  28(%eax)  # 栈顶寄存器ESP，加载到EAX中存储的地址(ESP+4+28地址处) 中
   movl %ebp, 24(%eax)   # 当前栈帧底部地址寄存器所存储的当前栈帧基地址，加载到EAX寄存器中存储的地址(ESP+4+24的地址处)中
   movl %esi, 20(%eax)   # TODO: continue here !!!
   movl %edi, 16(%eax)
   movl %edx, 12(%eax)
-  movl %ecx, 8(%eax)
-  movl %ebx, 4(%eax)
+  movl %ecx, 8(%eax)    # ECX寄存器中的值，加载到当前函数栈帧地址+8位置处
+  movl %ebx, 4(%eax)    # EBX寄存器值，加载到 EAX中存储的地址+4字节的位置，即调用者函数栈帧的下一个地址(指针)处
 
   movl 8(%esp), %eax
   movl 4(%eax), %ebx
