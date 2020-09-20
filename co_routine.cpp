@@ -1127,9 +1127,9 @@ struct stCoCond_t;
 struct stCoCondItem_t {
   stCoCondItem_t* pPrev;
   stCoCondItem_t* pNext;
-  stCoCond_t* pLink;
 
-  stTimeoutItem_t timeout;
+  stCoCond_t* pLink; // TODO:
+  stTimeoutItem_t timeout; // TODO:
 };
 
 struct stCoCond_t {

@@ -35,11 +35,12 @@ struct stEnv_t {
 };
 
 /**
+ * 生产者
  * @param args 传入的是 stEnv_t
  */
 void* Producer(void* args) {
   co_enable_hook_sys();
-  
+
   stEnv_t* env = (stEnv_t*) args;
   int id = 0;
   while (true) {
@@ -87,7 +88,7 @@ int main() {
   co_create(&producer_routine, NULL, Producer, env);
   co_resume(producer_routine);
 
-  // 开启事件循环
+  // 开启协程事件(处理)循环，协程创建启动完之后，我们需要执行epoll的事件循环处理，协助协程的调度及异步操作
   co_eventloop(co_get_epoll_ct(), NULL, NULL);
   return 0;
 }
