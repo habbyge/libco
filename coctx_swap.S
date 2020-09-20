@@ -58,15 +58,16 @@ coctx_swap: # 存储当前协程函数的寄存器到内存中；加载下一个
 # GDT和LDT
 # 前者是全局描述符表，位置由GDTR寄存器确定，后者是局部描述符表，位置由LDTR寄存器确定，具体使用哪一个，取决于段选择码中的TI位。
 #if defined(__i386__)
+  # 栈的增长方向是高地址 -> 低地址，配合coctx_swap()参数一起来分析协程上下文切换汇编：
   # 当前栈帧顶寄存器ESP指向的地址+4对应的内容，加载到EAX寄存器中，即：下一个函数的栈帧首地址存入EAX存入寄存器中
-  movl 4(%esp), %eax    
-  movl %esp,  28(%eax)  # 栈顶寄存器ESP，加载到EAX中存储的地址(ESP+4+28地址处) 中
-  movl %ebp, 24(%eax)   # 当前栈帧底部地址寄存器所存储的当前栈帧基地址，加载到EAX寄存器中存储的地址(ESP+4+24的地址处)中
-  movl %esi, 20(%eax)   # TODO: continue here !!!
-  movl %edi, 16(%eax)
-  movl %edx, 12(%eax)
-  movl %ecx, 8(%eax)    # ECX寄存器中的值，加载到当前函数栈帧地址+8位置处
-  movl %ebx, 4(%eax)    # EBX寄存器值，加载到 EAX中存储的地址+4字节的位置，即调用者函数栈帧的下一个地址(指针)处
+  movl 4(%esp), %eax # regs[0], 栈帧中倒数第一个数据存入寄存器EAX中，EAX是第一个形参，即 struct coctx_t.regs[0]
+  movl %esp,  28(%eax) # regs[7], 栈顶寄存器ESP，加载到EAX中存储的地址(ESP+4+28地址处) 中
+  movl %ebp, 24(%eax) # regs[6], 当前栈帧底部地址寄存器所存储的当前栈帧基地址，加载到EAX寄存器中存储的地址(ESP+4+24的地址处)中
+  movl %esi, 20(%eax) # regs[5], 
+  movl %edi, 16(%eax) # regs[4], 
+  movl %edx, 12(%eax) # regs[3], 
+  movl %ecx, 8(%eax) # regs[2], ECX寄存器中的值，加载到当前函数栈帧地址+8位置处
+  movl %ebx, 4(%eax) # regs[1], EBX寄存器值，加载到 EAX中存储的地址+4字节的位置，即调用者函数栈帧的下一个地址(指针)处
 
   movl 8(%esp), %eax
   movl 4(%eax), %ebx
