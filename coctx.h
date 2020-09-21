@@ -52,7 +52,7 @@ struct coctx_param_t {
  */
 struct coctx_t {
 #if defined(__i386__)
-  // 32bit携程上下文寄存器：
+  // 32bit协程上下文寄存器：
   // low  | regs[0]: ret |
   //      | regs[1]: ebx |
   //      | regs[2]: ecx |
