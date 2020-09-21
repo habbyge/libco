@@ -52,12 +52,21 @@ struct coctx_param_t {
  */
 struct coctx_t {
 #if defined(__i386__)
+  // 32bit携程上下文寄存器：
+  // low  | regs[0]: ret |
+  //      | regs[1]: ebx |
+  //      | regs[2]: ecx |
+  //      | regs[3]: edx |
+  //      | regs[4]: edi |
+  //      | regs[5]: esi |
+  //      | regs[6]: ebp |
+  // high | regs[7]: eax |  = esp
   void* regs[8]; // 8个寄存器
 #else
-  void* regs[14]; // 最多存储14个寄存器
+  void* regs[14]; // 最多存储14个寄存器，每个寄存器是8字节，所以寄存器组最后一个偏移量是112=13*8
 #endif
-  size_t ss_size; // 栈大小
-  char* ss_sp; // 栈顶指针 
+  size_t ss_size; // 栈大小：协程剩余大小
+  char* ss_sp; // 协程栈底：每个协程都有独立的栈控件(栈帧)，sp+size表示栈顶指针
 };
 
 int coctx_init(coctx_t* ctx);
