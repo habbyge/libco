@@ -96,8 +96,13 @@ coctx_swap: # 存储当前协程函数的寄存器到内存中；加载下一个
   ret
 
 #elif defined(__x86_64__)
-# %rax 作为函数返回值使用。
-# %rsp 栈指针寄存器，指向栈顶
+  # %rax 作为函数返回值使用。
+  # %rsp 栈指针寄存器，指向栈顶
+  # lea与mov区别：lea不解引用，即直接取地址，mov(加括号)是解引用，即：取地址中存储的内容。
+  # lea是“load effective address”的缩写，简单的说，lea指令可以用来将一个内存地址直接赋给目的操作数，
+  # 例如：lea 8(%ebx), %eax 就是将ebx+8这个值直接赋给eax，而不是把ebx+8处的内存地址里的数据赋给eax。
+  # 而mov指令则恰恰相反，例如：mov 8(%ebx), %eax 则是把内存地址为ebx+8处的数据赋给eax
+
   leaq (%rsp), %rax    # 把rsp寄存器中存储的地址存入rax寄存器，即当前栈帧的栈顶地址加载到RAX寄存器中
   movq %rax, 104(%rdi)
   movq %rbx, 96(%rdi)
