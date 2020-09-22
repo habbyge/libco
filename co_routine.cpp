@@ -90,7 +90,7 @@ struct stCoRoutineEnv_t {
                        // 也用于该线程的事件循环eventloop中，使用kqueue()实现
 
   // for copy stack log lastco and nextco
-  stCoRoutine_t* pending_co; // 挂起的协程
+  stCoRoutine_t* pending_co; // 挂起的协程，也是下一个将要执行的协程
   stCoRoutine_t* occupy_co;  // 当前协程(占据)
 };
 
