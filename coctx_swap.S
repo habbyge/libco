@@ -73,7 +73,7 @@ coctx_swap: # 存储当前协程函数的寄存器到内存中；加载下一个
   # 的上下文(寄存器+栈帧)，restore到当前寄存器中，并指向该函数新的栈帧。
   # 此时的栈帧是：&(pending_co->ctx) -> &(curr->ctx) -> ret返回地址，且esp寄存器值指向栈顶(返回地址)，
   # 注意：栈的增长方向是由高到低
-  movl 4(%esp), %eax # 将coctx_swap()的第一个参数(&(curr->ctx))的地址存入eax寄存器中：regs[0] -> eax
+  movl 4(%esp), %eax # 将coctx_swap()的第一个参数(&(curr->ctx))的地址中存储的数据(curr->ctx)存入eax寄存器中：regs[0] -> eax
   movl %esp,  28(%eax) # esp -> regs[7]
   movl %ebp, 24(%eax)  # ebp -> regs[6]
   movl %esi, 20(%eax)  # esi -> regs[5]
