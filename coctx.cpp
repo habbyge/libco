@@ -27,9 +27,10 @@ available.
 #include <string.h>
 
 #define ESP 0 // 栈指针寄存器(Extended Stack Pointer)，其内存放着一个指针，该指针永远指向当前栈帧的栈顶
-#define EIP 1 // 指向汇编代码栈的指令地址，表示即将要执行的指令，作为返回地址
-#define EAX 2
+#define EIP 1 // 指向汇编指令地址，表示即将要执行的指令，作为返回地址，在执行call指令时自动push入栈
+#define EAX 2 // 如果子函数有返回值时，通常使用eax返回
 #define ECX 3
+
 // ----------- x86-64
 #define RSP 0 // 表示栈顶寄存器
 #define RIP 1 // 指向汇编代码栈的指令地址，表示即将要执行的指令
