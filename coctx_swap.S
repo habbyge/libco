@@ -75,7 +75,7 @@ coctx_swap: # 存储当前协程函数的寄存器到内存中；加载下一个
   # 注意：栈的增长方向是由高到低
 
   # 将coctx_swap()的第一个参数(&(curr->ctx))的地址中存储的数据(curr->ctx)存入eax寄存器中：regs[0] -> eax
-  movl 4(%esp), %eax 
+  movl 4(%esp), %eax # eax寄存器存储第一个参数(当前协程的上下文)，注：mov(指针、地址)指令会解引用，获取其值
   movl %esp,  28(%eax) # esp -> regs[7]
   movl %ebp, 24(%eax)  # ebp -> regs[6]
   movl %esi, 20(%eax)  # esi -> regs[5]

@@ -65,8 +65,8 @@ struct coctx_t {
 #else
   void* regs[14]; // 最多存储14个寄存器，每个寄存器是8字节，所以寄存器组最后一个偏移量是112=13*8
 #endif
-  size_t ss_size; // 栈大小：协程剩余大小
-  char* ss_sp; // 协程栈底：每个协程都有独立的栈控件(栈帧)，sp+size表示栈顶指针
+  size_t ss_size; // 栈大小
+  char* ss_sp;    // 协程栈底：每个协程都有独立的栈控件(栈帧)，sp+size表示栈顶指针
 };
 
 int coctx_init(coctx_t* ctx);

@@ -67,7 +67,7 @@ struct stCoRoutine_t {
   // 保存当前协程执行时的所有寄存器
   coctx_t ctx; // 存储的是当前协程的上下文，在调用co_swap()时使用
 
-  char cStart;
+  char cStart; // 标记是否开始该协程
   char cEnd;
   
   char cIsMain; // 主协程？
