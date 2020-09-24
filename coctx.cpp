@@ -96,6 +96,10 @@ extern "C" {
   extern void coctx_swap(coctx_t*, coctx_t*) asm("coctx_swap"); // libco的协程切换 coctx_swap()
 };
 
+/**
+ * 创建协程：协程的栈不是在程序的栈空间里的，是我们自己创建的，那这个自己创建的协程栈是怎么初始化的呢？
+ * TODO: 这里继续......
+ */
 #if defined(__i386__)
 int coctx_init(coctx_t* ctx) {
   memset(ctx, 0, sizeof(*ctx));
@@ -113,8 +117,7 @@ int coctx_make(coctx_t* ctx, coctx_pfn_t pfn, const void* s, const void* s1) {
   param->s2 = s1;
 
   memset(ctx->regs, 0, sizeof(ctx->regs));
-
-  ctx->regs[kESP] = (char*) (sp) - sizeof(void*) * 2;
+  ctx->regs[kESP] = (char*) (sp) - sizeof(void*) * 2; // regs[7]
   return 0;
 }
 #elif defined(__x86_64__)

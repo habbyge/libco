@@ -78,9 +78,10 @@ struct stCoEpoll_t;
  */
 // 代表一个thread中的所有协程，一个线程实例的上下文
 struct stCoRoutineEnv_t {
-  // 协程调用链，这个数组最大128个元素，对一个线程来说，这个数组是唯一的，每次resume都会向里边压入一个协程指针，
-  // yield的时候弹出。单线程执行的时候，在A协程内唤醒B协程，B又唤醒C......，这样的嵌套最多有128个，虽然很难遇
-  // 到溢出情况，也还是需要注意一下
+  // 每个线程都有一个协程(函数)栈，大小是128，栈顶协程是当前正在运行的协程。
+  // 协程调用链，这个数组最大128个元素，对一个线程来说，这个数组是唯一的，每次co_resume()都会向里边
+  // 压入一个协程指针(使协程获得执行权)，co_yield()时候弹出。单线程执行的时候，在A协程内唤醒B协程，
+  // B又唤醒C......，这样的嵌套最多有128个，虽然很难遇到溢出情况，也还是需要注意一下
   stCoRoutine_t* pCallStack[128]; // 该线程内允许嵌套创建128个协程(即协程1内创建协程2, 协程2内创建协程3... 
                                   // 协程127内创建协程128. 该结构虽然是数组, 但将其作为栈来使用, 满足后进先出的特点)
   int iCallStackSize;  // 该线程内嵌套创建的协程数量, 即 pCallStack 数组中元素的数量
@@ -449,7 +450,7 @@ static int CoRoutineFunc(stCoRoutine_t* co, void*) {
   if (co->pfn) {
     co->pfn(co->arg);
   }
-  co->cEnd = 1;
+  co->cEnd = 1; // 协程执行结束
 
   stCoRoutineEnv_t* env = co->env; // 获取当前线程的调度器
   
@@ -550,15 +551,20 @@ void co_release(stCoRoutine_t* co) {
 
 void co_swap(stCoRoutine_t* curr, stCoRoutine_t* pending_co);
 
+/**
+ * 通过co_resume来使协程获得执行权
+ */
 void co_resume(stCoRoutine_t* co) {
   stCoRoutineEnv_t* env = co->env;
   stCoRoutine_t* lpCurrRoutine = env->pCallStack[env->iCallStackSize - 1];
-  if (!co->cStart) {
-    coctx_make(&co->ctx, (coctx_pfn_t) CoRoutineFunc, co, 0); // TODO: 这里继续......
+  if (!co->cStart) { // 目标协程还没初始化，则初始化
+    coctx_make(&co->ctx, (coctx_pfn_t) CoRoutineFunc, co, 0);
     co->cStart = 1;
   }
   env->pCallStack[env->iCallStackSize++] = co;
-  co_swap(lpCurrRoutine, co); // 切换协程
+
+  // 切换协程的控制权(上下文)，获得执行权则是把控制权从栈顶协程切换到目的协程，并把目的协程入栈。
+  co_swap(lpCurrRoutine, co);
 }
 
 // walkerdu 2018-01-14
@@ -592,7 +598,8 @@ void co_yield_env(stCoRoutineEnv_t* env) {
 
   env->iCallStackSize--;
 
-  co_swap(curr, last);
+  // 释放执行权将控制权由栈顶协程切换到栈顶的下一个协程，并将栈顶协程出栈。
+  co_swap(curr, last); // 切换协程的控制权(上下文)
 }
 
 void co_yield_ct() { co_yield_env(co_get_curr_thread_env()); }
