@@ -108,16 +108,16 @@ int coctx_init(coctx_t* ctx) {
 int coctx_make(coctx_t* ctx, coctx_pfn_t pfn, const void* s, const void* s1) {
   // make room for coctx_param
   char* sp = ctx->ss_sp + ctx->ss_size - sizeof(coctx_param_t);
-  sp = (char*) ((unsigned long) sp & -16L);
+  sp = (char*) ((unsigned long) sp & -16L); // 0x1f
 
   coctx_param_t* param = (coctx_param_t*) sp;
   void** ret_addr = (void**) (sp - sizeof(void*) * 2);
-  *ret_addr = (void*) pfn;
+  *ret_addr = (void*) pfn; // pfn -> s2 -> s1
   param->s1 = s;
   param->s2 = s1;
 
   memset(ctx->regs, 0, sizeof(ctx->regs));
-  ctx->regs[kESP] = (char*) (sp) - sizeof(void*) * 2; // regs[7]
+  ctx->regs[kESP] = (char*) (sp) - sizeof(void*) * 2; // ctx->regs[7]
   return 0;
 }
 #elif defined(__x86_64__)

@@ -519,6 +519,11 @@ struct stCoRoutine_t* co_create_env(stCoRoutineEnv_t* env,
 
 /**
  * 创建协程，接口样式模拟的是pthread
+ * @param ppco 输出参数，co_create内部会为新协程分配一个“协程控制块”，*ppco将指向这个分配的协程控制块
+ * @param attr 输入参数，用于指定要创建协程的属性，可为NULL。实际上仅有两个属性：栈大小、指向共享栈的指
+ *             针（使用共享栈模式）
+ * @param pfn 指向协程的任务函数，即启动这个协程后要完成什么样的任务
+ * @param arg 
  */
 int co_create(stCoRoutine_t** ppco, const stCoRoutineAttr_t* attr, pfn_co_routine_t pfn, void* arg) {
   if (!co_get_curr_thread_env()) {
