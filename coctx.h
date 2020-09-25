@@ -21,15 +21,8 @@ available.
 #define __CO_CTX_H__
 #include <stdlib.h>
 
-typedef void* (*coctx_pfn_t) (void* s, void* s2);
-
-struct coctx_param_t {
-  const void* s1;
-  const void* s2;
-};
-
 /**
- * 协程上下文：寄存器(体系结构相关) + 栈
+ * 协程上下文：寄存器(体系结构相关) + 栈(栈内存地址ebp->esp)
  * 程序执行时，CPU通过几个特定的寄存器，包括esp、ebp等，来确定当前执行的代码地址，栈帧的位置等信息，发生函数
  * 调用时，系统会在当前栈帧顶部压入被调用函数的栈帧，存入被调用函数的形参、返回地址等信息（类似Java）；被调用
  * 函数执行完返回时，再回收这个函数的栈帧，返回到上一个栈帧；
@@ -56,8 +49,23 @@ struct coctx_param_t {
  * 32位使用栈帧来作为传递的参数的保存位置，而64位使用寄存器，分别用rdi,rsi,rdx,rcx,r8,r9作为第1-6个参数，
  * 只有超过6个参数，第七个参数才开始压栈。 所以上面的结论“参数的地址比局部变量的地址高”在64位机器上是不对的，
  * 只有第七个之后的参数才符合"参数的地址比局部变量的地址高"。
+ * 
+ * // call指令、leave指令：
+ * call指令作用是把eip寄存器值(返回地址)压入栈中，并把程序跳转到子函数开头的位置，而ret指令的作用是弹出栈顶
+ * 处的父函数中的返回地址给eip寄存器；在函数的ret指令之前，一般会有一个leave指令，这个指令自动让子函数栈帧中
+ * 开头保存的父函数的ebp寄存器值(父函数栈帧底部指针)出栈，并还原给ebp寄存器，从而让栈帧切换回父函数；因此上
+ * 下文切换时，无需手动保存eip、ebp(？这个待定)、esp(？待定)。
  */
-struct coctx_t {
+
+// 定义协程入口函数类型
+typedef void* (*coctx_pfn_t) (void* s, void* s2);
+
+struct coctx_param_t {
+  const void* s1; // 存放协程入口函数的第1个参数
+  const void* s2; // 存放协程入口函数的第2个参数
+};
+
+struct coctx_t { // libco中，协程上下文保存在此结构体中
 #if defined(__i386__)
   // 32bit协程上下文寄存器：  
   // low  | regs[0]: ret |
