@@ -82,6 +82,8 @@ coctx_swap: # 存储当前协程函数的寄存器到内存中；加载下一个
   # ->&(pending_co->ctx)->&(curr->ctx)->返回地址(call指令执行时，自动把eip寄存器值入栈)，esp寄存器值
   # 指向栈顶(返回地址)，因此4(%esp)指向的是&(curr->ctx)，即当前上下文地址(struct coctx_t)，也相当于该结
   # 构体中的第一个字段，即：coctx_t.regs[0]。
+  # 注意：一般子函数第一条执行是在当前子函数栈帧中保存其父函数的ebp寄存器值。这里省略了，直接保存到当前上下文的
+  # heap上了，恢复时直接从这里读取即可
   movl 4(%esp), %eax   # regs[0] -> eax
   movl %esp,  28(%eax) # esp -> regs[7]
   movl %ebp, 24(%eax)  # ebp -> regs[6]
@@ -90,7 +92,8 @@ coctx_swap: # 存储当前协程函数的寄存器到内存中；加载下一个
   movl %edx, 12(%eax)  # edx -> regs[3]
   movl %ecx, 8(%eax)   # ecx -> regs[2]
   movl %ebx, 4(%eax)   # ebx -> regs[1]
-  # TODO: 要执行的下一条指令地址存储在哪里？即eip寄存器在哪里保存的？？？？？？
+
+  # 问：要执行的下一条指令地址存储在哪里？即eip寄存器在哪里保存的？？？？？？
   # 答：在call指令调用子函数同时，会将eip寄存器中的值(返回地址、指针)push入栈(子函数的栈帧)，之后把ebp值(父函数
   # 的栈(帧)底部指针)push入栈，再新建子函数的栈帧(父函数esp -> ebp(子函数)，完成子函数栈帧的建立)。
 
