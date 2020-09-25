@@ -76,6 +76,12 @@ coctx_swap: # 存储当前协程函数的寄存器到内存中；加载下一个
 
   # 将coctx_swap()的第一个参数(&(curr->ctx))的地址中存储的数据(curr->ctx)存入eax寄存器中：regs[0] -> eax
   eax寄存器存储第一个参数(当前协程的上下文)，注：mov(指针、地址)指令会解引用，获取其值
+
+  # 进到此处的指令时，刚好是在其父函数co_swap()执行call指令调用coctx_swap()后的第一条指令，该指令执行之前，
+  # 当前栈帧属于esp指向的是其父函数co_swap()，此时的栈帧情况是：co_swap()从右向左的参数->局部变量
+  # ->&(pending_co->ctx)->&(curr->ctx)->返回地址(call指令执行时，自动把eip寄存器值入栈)，esp寄存器值
+  # 指向栈顶(返回地址)，因此4(%esp)指向的是&(curr->ctx)，即当前上下文地址(struct coctx_t)，也相当于该结
+  # 构体中的第一个字段，即：coctx_t.regs[0]。
   movl 4(%esp), %eax   # regs[0] -> eax
   movl %esp,  28(%eax) # esp -> regs[7]
   movl %ebp, 24(%eax)  # ebp -> regs[6]
