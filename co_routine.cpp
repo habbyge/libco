@@ -721,7 +721,7 @@ void co_swap(stCoRoutine_t* curr, stCoRoutine_t* pending_co) {
   }
 
   // FIXME: swap context 切换协程上下文
-  coctx_swap(&(curr->ctx), &(pending_co->ctx)); // TODO: 这里需要重新分析
+  coctx_swap(&(curr->ctx), &(pending_co->ctx));
 
   // stack buffer may be overwrite, so get again;
   stCoRoutineEnv_t* curr_env = co_get_curr_thread_env();
