@@ -720,7 +720,7 @@ void co_swap(stCoRoutine_t* curr, stCoRoutine_t* pending_co) {
     }
   }
 
-  // FIXME: swap context 切换协程上下文
+  // FIXME: swap context 切换协程上下文之寄存器
   coctx_swap(&(curr->ctx), &(pending_co->ctx));
 
   // stack buffer may be overwrite, so get again;

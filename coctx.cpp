@@ -105,6 +105,9 @@ int coctx_init(coctx_t* ctx) {
   memset(ctx, 0, sizeof(*ctx));
   return 0;
 }
+/**
+ * @param ctx 输出参数 当前协程上下文
+ */
 int coctx_make(coctx_t* ctx, coctx_pfn_t pfn, const void* s, const void* s1) {
   // make room for coctx_param
   char* sp = ctx->ss_sp + ctx->ss_size - sizeof(coctx_param_t);
@@ -117,7 +120,7 @@ int coctx_make(coctx_t* ctx, coctx_pfn_t pfn, const void* s, const void* s1) {
   param->s2 = s1;
 
   memset(ctx->regs, 0, sizeof(ctx->regs));
-  ctx->regs[kESP] = (char*) (sp) - sizeof(void*) * 2; // ctx->regs[7]
+  ctx->regs[kESP] = (char*) (sp) - sizeof(void*) * 2; // TODO: 存储: 协程函数的地址 -> ctx->regs[7]
   return 0;
 }
 #elif defined(__x86_64__)
