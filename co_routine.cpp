@@ -273,7 +273,7 @@ void inline Join(TLink* apLink, TLink* apOther) {
  * 为协程创建一个栈
  * @param stack_size 栈大小
  */
-stStackMem_t* co_alloc_stackmem(unsigned int stack_size) { // TODO: 这里继续......
+stStackMem_t* co_alloc_stackmem(unsigned int stack_size) {
   stStackMem_t* stack_mem = (stStackMem_t*) malloc(sizeof(stStackMem_t));
   stack_mem->occupy_co = NULL;
   stack_mem->stack_size = stack_size;
