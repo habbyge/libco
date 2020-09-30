@@ -110,7 +110,7 @@ int coctx_init(coctx_t* ctx) {
 int coctx_make(coctx_t* ctx, coctx_pfn_t pfn, const void* s, const void* s1) {
   // make room for coctx_param
   char* sp = ctx->ss_sp + ctx->ss_size - sizeof(coctx_param_t); // 在栈顶部留出协程参数大小的空间
-  sp = (char*) ((unsigned long) sp & -16L); // -10000
+  sp = (char*) ((unsigned long) sp & -16L); // -10000，对齐操作
 
   coctx_param_t* param = (coctx_param_t*) sp;
   void** ret_addr = (void**) (sp - sizeof(void*) * 2);

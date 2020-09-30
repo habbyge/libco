@@ -103,7 +103,7 @@ struct stCoRoutineEnv_t {
 void co_log_err(const char* fmt, ...) {}
 
 #if defined(__LIBCO_RDTSCP__)
-static unsigned long long counter(void) {
+static unsigned long long counter() {
   register uint32_t lo, hi;
   register unsigned long long o;
   __asm__ __volatile__("rdtscp" : "=a"(lo), "=d"(hi)::"%rcx");
@@ -572,9 +572,9 @@ void co_resume(stCoRoutine_t* co) {
   stCoRoutineEnv_t* env = co->env;
   // 有可能是(非)主协程(main)
   stCoRoutine_t* lpCurrRoutine = env->pCallStack[env->iCallStackSize - 1];
-  if (!co->cStart) { // 目标协程还没初始化，则初始化
+  if (!co->cStart) { // 目标协程还没启动过：即第1次启动
     coctx_make(&co->ctx, (coctx_pfn_t) CoRoutineFunc, co, 0);
-    co->cStart = 1;
+    co->cStart = 1; // 标识该协程已经启动过了
   }
   env->pCallStack[env->iCallStackSize++] = co;
 

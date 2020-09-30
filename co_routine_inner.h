@@ -38,8 +38,8 @@ struct stCoSpec_t {
 struct stStackMem_t {
   stCoRoutine_t* occupy_co; // 独占该栈空间的协程
   int stack_size; // 栈大小
-  char* stack_bp; // stack_buffer + stack_size，指向栈顶
-  char* stack_buffer; // 栈空间
+  char* stack_bp; // stack_buffer + stack_size，指向栈底(栈地址空间是由高到低)
+  char* stack_buffer; // 栈空间，栈的增长方向是 stack_bp减法
 };
 
 /**
