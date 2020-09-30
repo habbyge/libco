@@ -75,7 +75,7 @@ struct coctx_t { // libco中，协程上下文保存在此结构体中
   //      | regs[4]: edi |
   //      | regs[5]: esi |
   //      | regs[6]: ebp |
-  // high | regs[7]: eax |  = esp
+  // high | regs[7]: eax |  = esp，初始化时，存储的是协程函数的地址pfn，以此还有其两个参数
   void* regs[8]; // 8个寄存器
 #else
   void* regs[14]; // 最多存储14个寄存器，每个寄存器是8字节，所以寄存器组最后一个偏移量是112=13*8

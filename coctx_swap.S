@@ -120,7 +120,7 @@ coctx_swap: # 存储当前协程函数的寄存器到内存中；加载下一个
   # 
 
   # restore
-  # 将coctx_swap()的第二个参数(&(pending_co->ctx))的地址存入eax寄存器
+  # 将coctx_swap()的第二个参数(&(pending_co->ctx)，即要启动的协程上下文)的地址存入eax寄存器
   movl 8(%esp), %eax  # regs[0] -> eax
   movl 4(%eax), %ebx  # regs[1] -> ebx
   movl 8(%eax), %ecx  # regs[2] -> ecx
