@@ -29,6 +29,7 @@ available.
 
 void* RoutineFunc(void* args) {
   co_enable_hook_sys();
+  
   int* routineid = (int*) args;
   while (true) {
     char sBuff[128];
@@ -41,7 +42,7 @@ void* RoutineFunc(void* args) {
 }
 
 int main() {
-  stShareStack_t* share_stack = co_alloc_sharestack(1, 1024 * 128);
+  stShareStack_t* share_stack = co_alloc_sharestack(1, 1024 * 128); // 1个128K共享内存
   stCoRoutineAttr_t attr;
   attr.stack_size = 0;
   attr.share_stack = share_stack;

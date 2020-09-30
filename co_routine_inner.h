@@ -47,9 +47,9 @@ struct stStackMem_t {
  * stackless：共享栈模式，所有协程共享 count 块提前分配好的大内存作为栈帧空间(stackarray)
  */
 struct stShareStack_t {
-  unsigned int alloc_idx;
-  int stack_size; // 每个协程栈大小
-  int count; // stack_array条数，协程栈个数
+  unsigned int alloc_idx;     // 当前索引(index)
+  int stack_size;             // 每个协程栈大小
+  int count;                  // stack_array条数，协程栈个数
   stStackMem_t** stack_array; // 协程栈数组
 };
 
