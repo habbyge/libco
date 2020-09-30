@@ -60,11 +60,18 @@ available.
 // 定义协程入口函数类型
 typedef void* (*coctx_pfn_t) (void* s, void* s2);
 
+/**
+ * 用于分配coctx_swap两个参数内存区域的结构体
+ * 仅32位下使用，64位下两个参数直接由寄存器传递
+ */
 struct coctx_param_t {
-  const void* s1; // 存放协程入口函数的第1个参数
-  const void* s2; // 存放协程入口函数的第2个参数
+  const void* s1;
+  const void* s2;
 };
 
+/**
+ * coctx_t 这个结构定义了整个协程的核心，设计协程的执行地址，ESP栈帧的地址设置以及其他重要寄存器值的保存
+ */
 struct coctx_t { // libco中，协程上下文保存在此结构体中
 #if defined(__i386__)
   // 32bit协程上下文寄存器：  
@@ -76,12 +83,13 @@ struct coctx_t { // libco中，协程上下文保存在此结构体中
   //      | regs[5]: esi |
   //      | regs[6]: ebp |
   // high | regs[7]: eax |  = esp，初始化时，存储的是协程函数的地址pfn，以此还有其两个参数
-  void* regs[8]; // 8个寄存器
+  void* regs[8]; // 8个寄存器，用于保存或设定特定寄存器值
 #else
   void* regs[14]; // 最多存储14个寄存器，每个寄存器是8字节，所以寄存器组最后一个偏移量是112=13*8
 #endif
-  size_t ss_size; // 栈大小
-  char* ss_sp;    // 协程栈底：每个协程都有独立的栈控件(栈帧)，sp+size表示栈顶指针
+  size_t ss_size; // 栈帧区域size
+  // 协程栈帧内存区域，每个协程都有独立的栈控件(栈帧)，sp+size表示栈顶指针，这里协程栈帧区域是在堆上分配
+  char* ss_sp;
 };
 
 int coctx_init(coctx_t* ctx);

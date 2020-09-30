@@ -67,7 +67,8 @@ void* RoutineFunc(void* args) {
 
 int main(int argc, char* argv[]) {
   co_set_env_list(CGI_ENV_HOOK_LIST, sizeof(CGI_ENV_HOOK_LIST) / sizeof(char*));
-  stRoutineArgs_t args[3];
+
+  stRoutineArgs_t args[3]; // 定义三个协程实例
   for (int i = 0; i < 3; i++) {
     stCoRoutine_t* co = NULL;
     args[i].iRoutineID = i;

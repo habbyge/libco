@@ -98,7 +98,6 @@ extern "C" {
 
 /**
  * 创建协程：协程的栈不是在程序的栈空间里的，是我们自己创建的，那这个自己创建的协程栈是怎么初始化的呢？
- * TODO: 这里继续......
  */
 #if defined(__i386__)
 int coctx_init(coctx_t* ctx) {
@@ -116,11 +115,12 @@ int coctx_make(coctx_t* ctx, coctx_pfn_t pfn, const void* s, const void* s1) {
   coctx_param_t* param = (coctx_param_t*) sp;
   void** ret_addr = (void**) (sp - sizeof(void*) * 2);
   *ret_addr = (void*) pfn; // 栈情况：pfn -> s2 -> s1
-  param->s1 = s;
-  param->s2 = s1;
+  param->s1 = s;  // stCoRoutine_t*
+  param->s2 = s1; // 0(NULL)
 
   memset(ctx->regs, 0, sizeof(ctx->regs));
-  // FIXME: 存储: 协程函数的地址(pfn) -> ctx->regs[7]，这个非常重要，是上下文切换时，保存和恢复的返回地址，即要执行的协程函数地址
+  // FIXME: 存储: 协程函数的地址(pfn) -> ctx->regs[7]，这个非常重要，在上下文切换时，保存和恢复的
+  // 返回地址，即要执行的协程函数地址
   ctx->regs[kESP] = (char*) (sp) - sizeof(void*) * 2;
   return 0;
 }

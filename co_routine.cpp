@@ -84,7 +84,7 @@ struct stCoRoutineEnv_t {
   // B又唤醒C......，这样的嵌套最多有128个，虽然很难遇到溢出情况，也还是需要注意一下
   stCoRoutine_t* pCallStack[128]; // 该线程内允许嵌套创建128个协程(即协程1内创建协程2, 协程2内创建协程3... 
                                   // 协程127内创建协程128. 该结构虽然是数组, 但将其作为栈来使用, 满足后进先出的特点)
-  int iCallStackSize;  // 该线程内嵌套创建的协程数量, 即 pCallStack 数组中元素的数量
+  int iCallStackSize;  // 该线程内(当前)嵌套创建的协程数量, 即 pCallStack 数组中元素的数量
 
   // 协程调度器
   stCoEpoll_t* pEpoll; // 该线程内的epoll实例(套接字通过该结构内的epoll句柄向内核注册事件), 
@@ -331,7 +331,10 @@ struct stCoEpoll_t {
   co_epoll_res* result;
 };
 
-typedef void (*OnPreparePfn_t) (stTimeoutItem_t*, struct epoll_event& ev, stTimeoutItemLink_t* active);
+typedef void (*OnPreparePfn_t) (stTimeoutItem_t*, 
+                                struct epoll_event& ev, 
+                                stTimeoutItemLink_t* active);
+
 typedef void (*OnProcessPfn_t) (stTimeoutItem_t*);
 
 /**
@@ -368,6 +371,7 @@ struct stTimeout_t {
   unsigned long long ullStart;
   long long llStartIdx;
 };
+
 stTimeout_t* AllocTimeout(int iSize) {
   stTimeout_t* lp = (stTimeout_t*) calloc(1, sizeof(stTimeout_t));
 
@@ -417,7 +421,9 @@ int AddTimeout(stTimeout_t* apTimeout, stTimeoutItem_t* apItem, unsigned long lo
   return 0;
 }
 
-inline void TakeAllTimeout(stTimeout_t* apTimeout, unsigned long long allNow, stTimeoutItemLink_t* apResult) {
+inline void TakeAllTimeout(stTimeout_t* apTimeout, unsigned long long allNow, 
+                           stTimeoutItemLink_t* apResult) {
+
   if (apTimeout->ullStart == 0) {
     apTimeout->ullStart = allNow;
     apTimeout->llStartIdx = 0;
@@ -525,7 +531,10 @@ struct stCoRoutine_t* co_create_env(stCoRoutineEnv_t* env,
  * @param pfn 指向协程的任务函数，即启动这个协程后要完成什么样的任务
  * @param arg 
  */
-int co_create(stCoRoutine_t** ppco, const stCoRoutineAttr_t* attr, pfn_co_routine_t pfn, void* arg) {
+int co_create(stCoRoutine_t** ppco, 
+              const stCoRoutineAttr_t* attr, 
+              pfn_co_routine_t pfn, void* arg) {
+
   if (!co_get_curr_thread_env()) {
     co_init_curr_thread_env();
   }
@@ -561,6 +570,7 @@ void co_swap(stCoRoutine_t* curr, stCoRoutine_t* pending_co);
  */
 void co_resume(stCoRoutine_t* co) {
   stCoRoutineEnv_t* env = co->env;
+  // 有可能是(非)主协程(main)
   stCoRoutine_t* lpCurrRoutine = env->pCallStack[env->iCallStackSize - 1];
   if (!co->cStart) { // 目标协程还没初始化，则初始化
     coctx_make(&co->ctx, (coctx_pfn_t) CoRoutineFunc, co, 0);
@@ -694,7 +704,7 @@ void save_stack_buffer(stCoRoutine_t* occupy_co) {
  * 
  * 函数切换时需要关心的仅仅是：函数的栈帧 + 寄存器
  * 
- * @param curr 当前协程，co_from
+ * @param curr 当前协程，co_from，有可能是
  * @param pending_co 下一个协程 co_to
  */
 void co_swap(stCoRoutine_t* curr, stCoRoutine_t* pending_co) {
@@ -720,7 +730,7 @@ void co_swap(stCoRoutine_t* curr, stCoRoutine_t* pending_co) {
     }
   }
 
-  // FIXME: swap context 切换协程上下文之寄存器
+  // FIXME: swap context 切换协程上下文之寄存器，此刻开始，才是真正切换到新的协程函数去执行了...
   coctx_swap(&(curr->ctx), &(pending_co->ctx));
 
   // stack buffer may be overwrite, so get again;
@@ -731,7 +741,9 @@ void co_swap(stCoRoutine_t* curr, stCoRoutine_t* pending_co) {
   if (update_occupy_co && update_pending_co && update_occupy_co != update_pending_co) {
     // resume stack buffer
     if (update_pending_co->save_buffer && update_pending_co->save_size > 0) {
-      memcpy(update_pending_co->stack_sp, update_pending_co->save_buffer, update_pending_co->save_size);
+      memcpy(update_pending_co->stack_sp, 
+             update_pending_co->save_buffer, 
+             update_pending_co->save_size);
     }
   }
 }
@@ -802,10 +814,11 @@ static short EpollEvent2Poll(uint32_t events) {
 }
 
 // __thread 表示线程私有变量
-// libco 的协程是 "单调用链"的，就是说一个线程内可以创建 N 个协程，协程总是由当前线程调用，一个线程只有一条调用链。
-// libco 使用 stCoRoutineEnv_t 结构来记录当前的调用链。当前线程的调用链通过线程专有变量 gCoEnvPerThread 来保存，
-// libco 内部会在第一次使用协程的时候初始化这个变量，我们看到 stCoRoutineEnv_t.pCallStack 的大小 128，这意味着，
-// 我们最多可以在协程嵌套 co_resume 新协程的深度为 128（协程里面运行新的协程）
+// libco 的协程是 "单调用链"的，就是说一个线程内可以创建 N 个协程，协程总是由当前线程调用，一个线程只有一条调
+// 用链。libco 使用 stCoRoutineEnv_t 结构来记录当前的调用链。当前线程的调用链通过线程专有变量 
+// gCoEnvPerThread 来保存，libco 内部会在第一次使用协程的时候初始化这个变量，我们看到 
+// stCoRoutineEnv_t.pCallStack 的大小 128，这意味着，我们最多可以在协程嵌套 co_resume 新协程的深度为 
+// 128（协程里面运行新的协程）
 static __thread stCoRoutineEnv_t* gCoEnvPerThread = nullptr; // 表示每条线程中的协程上下文
 
 /**
@@ -817,7 +830,7 @@ void co_init_curr_thread_env() {
 
   env->iCallStackSize = 0;
   struct stCoRoutine_t* self = co_create_env(env, NULL, NULL, NULL);
-  self->cIsMain = 1;
+  self->cIsMain = 1; // 标识是一个main()函数的主协程
 
   env->pending_co = NULL;
   env->occupy_co = NULL;
@@ -866,7 +879,7 @@ void OnPollPreparePfn(stTimeoutItem_t* ap, struct epoll_event& e, stTimeoutItemL
  */
 void co_eventloop(stCoEpoll_t* ctx, pfn_co_eventloop_t pfn, void* arg) {
   if (!ctx->result) {
-    ctx->result = co_epoll_res_alloc(stCoEpoll_t::_EPOLL_SIZE);
+    ctx->result = co_epoll_res_alloc(stCoEpoll_t::_EPOLL_SIZE); // 分配10k个fd资源
   }
   co_epoll_res* result = ctx->result;
 
