@@ -114,7 +114,7 @@ int coctx_make(coctx_t* ctx, coctx_pfn_t pfn, const void* s, const void* s1) {
 
   coctx_param_t* param = (coctx_param_t*) sp;
   void** ret_addr = (void**) (sp - sizeof(void*) * 2);
-  *ret_addr = (void*) pfn; // 栈情况：pfn -> s2 -> s1
+  *ret_addr = (void*) pfn; // 栈情况：s1 -> s -> void* -> pfn(regs[7])
   param->s1 = s;  // stCoRoutine_t*
   param->s2 = s1; // 0(NULL)
 
