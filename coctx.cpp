@@ -120,7 +120,10 @@ int coctx_make(coctx_t* ctx, coctx_pfn_t pfn, const void* s, const void* s1) {
 
   memset(ctx->regs, 0, sizeof(ctx->regs));
   // FIXME: 存储: 协程函数的地址(pfn) -> ctx->regs[7]，这个非常重要，在上下文切换时，保存和恢复的
-  // 返回地址，即要执行的协程函数地址
+  // 返回地址，即要执行的协程函数地址，这里libco利用了一个技巧，即：在coctx_swap()汇编代码中，利用ret
+  // 指令返回时，从当前栈帧的rsp中取出返回地址，即是协程函数地址。
+  // 注：正常情况下，C/C++函数返回时，限制性leave指令恢复到父函数的栈帧(ebp+esp)，在执行ret指令，从其
+  // 父函数的esp栈顶返回下一条指令地址到eip中(eip是在call指令执行时自动push到当前栈帧的顶部)。
   ctx->regs[kESP] = (char*) (sp) - sizeof(void*) * 2;
   return 0;
 }
