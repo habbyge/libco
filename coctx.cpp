@@ -59,9 +59,9 @@ available.
 // | regs[6]: ebp |
 // | regs[7]: eax |  = esp
 enum {
-  kEIP = 0,
-  kEBP = 6, // EBP: 基地址指针寄存器(Extended Base Pointer)，其内存放着一个指针，该指针永远指向当前栈帧的底部
-  kESP = 7,
+  kEIP = 0, // 下一条要执行的指令地址
+  kEBP = 6, // 基地址指针寄存器(Extended Base Pointer)，其内存放着一个指针，该指针永远指向当前栈帧的底部
+  kESP = 7, // 栈帧顶部指针
 };
 
 //-------------
