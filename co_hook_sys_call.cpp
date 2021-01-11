@@ -56,9 +56,9 @@ typedef long long ll64_t;
 // 这个源文件主要功能是hook了libco协程库中使用的Linux系统调用，又原先的系统调用功能，增加了针对协程(coroutine)的部分
 
 // 在研究C++中协程机制时，发现有些实现通过hack掉glibc的read、write等IO操作函数，以达到迁移协程框架时，
-// 最小化代码改动，遂小小研究一下linux下的hook机制。
+// 最小化代码改动，遂小小研究一下Linux下的hook机制。
 
-// 简单来说，就是利用动态链接的原理来修改符号指向，从而达到『偷梁换柱』的编程效果。 我们简单地来看一下 libco 
+// 简单来说，就是利用动态链接的原理来修改符号指向，从而达到『偷梁换柱』的编程效果。我们简单地来看一下 libco 
 // 是如何使用动态链接 Hook 系统函数的。事实上，libco 最大的特点就是将系统中的关于网络操作的阻塞函数全部进行
 // 相应的非侵入式改造，例如对于 read，write 函数，libco 均定义了自己的版本，然后通过 LD_PRELOAD 进行运行
 // 时(提前在搜索路径中定义一个同名、同形参、同返回值的目标函数)的解析，从而来达到阻塞时自动让出协程，并在 IO 
@@ -156,7 +156,7 @@ typedef int (*__poll_pfn_t) (struct pollfd fds[], nfds_t nfds, int timeout);
  * dlsym()函数是Linux的系统调用，获取共享对象(.so)或可执行文件(.o)中符号的地址，例如：read()/write()/socket()等
  * 
  * 将动态库(.so)中被hook的系统调用的地址(即函数指针)绑定到以g_sys_##name##__func命名的函数指针
- * 为什么要这么做呢? - 这样做的目的是在链接阶段(link)让系统调用在动态库中找不到对应的实现(使用LD_PRELOAD机制), 而来
+ * 为什么要这么做呢? - 这样做的目的是在链接阶段(Link)让系统调用在动态库中找不到对应的实现(使用LD_PRELOAD机制), 而来
  * 链接到我们代码中的同名函数(即被hook的函数)。
  * 
  * 特殊句柄 RTLD_NEXT 允许从调用方链接映射列表中的下一个关联目标文件获取符号。
@@ -423,7 +423,8 @@ int connect(int fd, const struct sockaddr* address, socklen_t address_len) {
 }
 
 /**
- * close - 被hook后的close函数, 主要是释放(g_rpchook_socket_fd中)套接字fd对应的rpchook_t类型存储空间 
+ * close - 被hook后的close函数, 主要是释放(g_rpchook_socket_fd中)
+ * 套接字fd对应的rpchook_t类型存储空间 
  */
 int close(int fd) {
   HOOK_SYS_FUNC(close);

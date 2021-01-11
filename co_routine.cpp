@@ -733,7 +733,8 @@ void co_swap(stCoRoutine_t* curr, stCoRoutine_t* pending_co) {
   // FIXME: swap context 切换协程上下文之寄存器，此刻开始，才是真正切换到新的协程函数去执行了...
   coctx_swap(&(curr->ctx), &(pending_co->ctx));
 
-  // stack buffer may be overwrite, so get again; TODO: 这里继续......
+  // TODO: 协程函数执行完成，指定返回到这里......
+  // stack buffer may be overwrite, so get again;
   stCoRoutineEnv_t* curr_env = co_get_curr_thread_env();
   stCoRoutine_t* update_occupy_co = curr_env->occupy_co;
   stCoRoutine_t* update_pending_co = curr_env->pending_co;
@@ -1163,8 +1164,8 @@ struct stCoCondItem_t {
   stCoCondItem_t* pPrev;
   stCoCondItem_t* pNext;
 
-  stCoCond_t* pLink; // TODO:
-  stTimeoutItem_t timeout; // TODO:
+  stCoCond_t* pLink;
+  stTimeoutItem_t timeout;
 };
 
 struct stCoCond_t {
